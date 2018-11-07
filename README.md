@@ -4,6 +4,16 @@ Small scale JS framework
 Build JS stuff with this small framework.
 I'll have to add more to this and do a proper job.
 
+Getting started
+1. Clone repo
+2. Run npm install
+3. Run npm run build:js
+OR
+Use the js in the dist folder and drop it straight into your HTML:
+```
+<script src="./dill.min.js"></script>
+```
+
  - Render
  ```
 <div id="display">
