@@ -1,0 +1,23 @@
+{
+	"name": "Dillv2",
+	"version": "1.0.0",
+	"description": "",
+	"main": "dill.js",
+	"directories": {
+		"example": "examples"
+	},
+	"scripts": {
+		"build:js": "./node_modules/.bin/gulp",
+		"build:js:prod": "./node_modules/.bin/gulp build-js-prod",
+		"watch:js": "./node_modules/.bin/gulp watch-js"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"gulp": "^3.9.1",
+		"gulp-concat": "^2.6.1",
+		"gulp-sourcemaps": "^2.6.4",
+		"gulp-uglify": "^3.0.1"
+	}
+}
