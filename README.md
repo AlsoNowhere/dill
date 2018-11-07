@@ -5,10 +5,12 @@ Build JS stuff with this small framework.
 I'll have to add more to this and do a proper job.
 
  - Render
+ ```
 <div id="display">
     <p>Example: {{example}}</p>
 </div>
 dill.render(document.getElementById("display"),{example:"Hello World!"});
+```
  
  - Components
 <example></example>
