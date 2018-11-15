@@ -2,5 +2,7 @@
 "use strict";
 
 (function(){
-	window._dill = {};
+	window._dill = {
+		modules: {}
+	};
 }());
