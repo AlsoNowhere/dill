@@ -9,8 +9,10 @@
 		this.template = template;
 	}
 
+	window._dill.Component = Component;
+
 	window._dill.generate_component = function(name,data,template_literal){
-		this.components[name] = new Component(name,data,template_literal);
+		return new Component(name,data,template_literal);
 	};
 
 }());
