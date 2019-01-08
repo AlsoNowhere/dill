@@ -7,7 +7,7 @@
 		var inverse = false,
 			output,
 			value;
-		if (text.substr(0,1) === "!") {
+		if (text.charAt(0) === "!") {
 			text = text.substring(1,text.length);
 			inverse = true;
 		}
