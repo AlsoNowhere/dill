@@ -16,6 +16,7 @@
 
 	window._dill.render_if = function(target,template){
 		var if_value = this.debracer(template.if.value,template.data);
+		// console.log("Value if: ", if_value, template.if.initial);
 		if (!template.if.initial && if_value) {
 			if (target === undefined) {
 				template.if.parent.appendChild(template.if.element);
@@ -34,7 +35,7 @@
 		else if (!template.if.initial && !if_value) {
 			return 0;
 		}
-		return 1;
+		return target;
 	}
 	
 }());
