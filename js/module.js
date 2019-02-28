@@ -18,10 +18,10 @@
 			}
 			elements = Object.keys(x.elements);
 			Object.keys(x.components).forEach(function(component){
-				// console.log("Cop: ", component, x.components[component]);
-				if (x.components[component].type === "global") {
-					this.components[component] = x.components[component];
+				if (x.components[component].type === "isolate") {
+					return;
 				}
+				this.components[component] = x.components[component];
 			}.bind(this));
 			Object.keys(x.services).forEach(function(service){
 				this.services[service] = x.services[service];
@@ -29,19 +29,20 @@
 		}.bind(this));
 	}
 	Module.prototype = {
-		set_component: function(component, type){
+		set_component: function(component){
 			this.components[component.name] = component;
+			if (component.type === "isolate") {
+				component.module = this;
+			}
 		},
 		set_service: function(service){
 			this.services[service.name] = service.data;
-		},
-		set_element: function(name,element){
-			this.elements[name] = element;
+			if (service.type === "isolate") {
+				service.module = this;
+			}
 		}
 	}
-
 	window._dill.Module = Module;
-
 	var new_module = function(){
 		var Module = window._dill.Module;
 		return function(name,scope,modules){

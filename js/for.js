@@ -3,6 +3,14 @@
 
 (function(){
 
+	var set_target_for = function(initial,list,type,target_end_for){
+		var i;
+		for (i=initial;i<list;i++) {
+			target_end_for = target_end_for[type+"ElementSibling"];
+		}
+		return target_end_for;
+	}
+
 	window._dill.template_for = function(target,template){
 		if (!target.hasAttribute("dill-for") || !template.data[target.attributes["dill-for"].nodeValue]) {
 			return;
@@ -27,19 +35,12 @@
 		}
 	}
 
-	window._dill.render_for = function(target,template){
+	window._dill.render_for = function(target,template,parent){
 		var target_end_for = target,
 			i,
 			data,
 			_template,
-			items = template.data[template.for.value];
-
-		// console.log("Items: ", items, template);
-
-		// if (target.nodeName === "OPTION") {
-			// console.log("Option: ", template.for);
-			// debugger;
-		// }
+			items = this.evaluator(template.for.value,template.data);
 
 // If this for loop has been behind an if to begin with then it will have an initial of 1 but no currents.
 // This can be discovered and corrected by adding in the missing current for the intial below.
@@ -48,9 +49,7 @@
 		}
 
 		if (template.for.initial < items.length) {
-			for (i=1;i<template.for.initial;i++) {
-				target_end_for = target_end_for.nextElementSibling;
-			}
+			target_end_for = set_target_for(1,template.for.initial,"next",target_end_for);
 			for (i=template.for.initial;i<items.length;i++) {
 				if (template.for.initial === 0 && i === template.for.initial) {
 					target_end_for.parentNode.insertBefore(template.for.clone.cloneNode(true), target);
@@ -62,7 +61,7 @@
 				}
 				data = this.create_data_object({
 					template_object:items[i],
-					parent_data:template.data._display,
+					parent_data:parent.data,
 					index:i
 				});
 				template.data = data;
@@ -72,9 +71,7 @@
 			}
 		}
 		else if (template.for.initial > items.length) {
-			for (i=0;i<items.length;i++) {
-				target_end_for = target_end_for.nextElementSibling;
-			}
+			target_end_for = set_target_for(0,items.length,"next",target_end_for);
 			for (i=0;i<template.for.initial-items.length;i++) {
 				target_end_for.parentNode.removeChild(
 					i === template.for.initial-items.length-1
@@ -86,24 +83,23 @@
 		}
 		target_end_for = target;
 		if (template.for.initial === 0) {
-			for (i=0;i<items.length;i++) {
-				target_end_for = target_end_for.previousElementSibling;
-			}
+			target_end_for = set_target_for(0,items.length,"previous",target_end_for);
 		}
-
-		// console.log("Render for: ", template.for.initial, template.for.currents.length, template.for.currents[0] && template.for.currents[0].data._item);
 
 		template.for.initial = items.length;
-		for (i=0;i<template.for.initial;i++) {
-			template.for.currents[i].data._item = items[i];
-			template.for.currents[i].data._index = i;
-			typeof items[i] === "object" && Object.keys(items[i]).forEach(function(key){
-				template.for.currents[i].data[key] = items[i][key];
-			});
-			// console.log("Each: ", target_end_for, template.for.currents[i].data._item)
-			this.render_element(target_end_for,template.for.currents[i]);
-			target_end_for = target_end_for.nextElementSibling;
-		}
+		(function(){
+			var reference;
+			for (i=0;i<template.for.initial;i++) {
+				reference = template.for.currents[i].data;
+				reference._item = items[i];
+				reference._index = i;
+				typeof items[i] === "object" && Object.keys(items[i]).forEach(function(key){
+					reference[key] = items[i][key];
+				});
+				this.render_element(target_end_for,template.for.currents[i]);
+				target_end_for = target_end_for.nextElementSibling;
+			}
+		}.apply(this));
 		return template.for.initial;
 	}
 }());

@@ -8,7 +8,7 @@
 		this.data = data;
 		this.module = module;
 		this.data._module = module;
-		// this.data._elements = {};
+		this.data._elements = data._elements || {};
 	}
 
 // This function produces a template object which represents an element inside the target section on DOM for Dill.
@@ -24,16 +24,9 @@
 			return template;
 		}
 
-// If the function exists handle the dill-extends attribute.
-		this.dill_extends && this.dill_extends(target,data);
-		// console.log("Extends: ", target, data);
-
 // This set for later. It needs to be set here because inside the template_for function it is removed from the element.
 // This attribute is removed so that the render function and template function do not get stuck in a loop.
 		has_for = target.hasAttribute("dill-for");
-
-
-		// console.log("Template: ", template, target, target.hasAttribute("dill-for"));
 
 
 // If the function exists handle the dill-for attribute.
@@ -50,56 +43,34 @@
 // If the function exists handle the dill-template attribute.
 		this.dill_template && this.dill_template(target,template);
 
-
-
-
-// If the element is to be added into the module elements (an attribute like #exmaple) then it is found and added here.
-		// this.for_each(target.attributes,function(attr){
-		// 	var name = attr.nodeName;
-		// 	if (name.charAt(0) === "#") {
-		// 		module.set_element(name.substring(1,name.length),target);
-		// 	}
-		// });
-
-// If this is a component then add attribute values (only those written as [example] or :example) to this component instance data.
-		// if (component) {
-		// 	this.component_attributes(target,template);
-		// }
-// Otherwise save what the attributes are for rendering.
-		// else {
-
-		// }
-
-
-
-
-
-
-
-
-
-
-
 // If this element is actually a component it will be found and handled as such from here.
 // If the function exists handle the component function.
 		this.template_component && (function(){
 			var _module = this.template_component(target,template,module);
 // Overwrite module so that data from this point (i.e inside this component) uses this module.
 			if (_module !== undefined) {
-				module = dill.module(_module);
+				module = dill.modules[_module.name];
 				template.data._module = module;
 			}
 		}.apply(this));
+// Run through each attribute
 		template.attributes = this.create_attributes(target,template,module,_data);
-		if (template.component && template.data.hasOwnProperty("oninit")) {
-			template.data.oninit();
-		}
 
+		(function(){
+			var value = template.if && template.data[template.if.value];
+			if (!template.component || !template.data.hasOwnProperty("oninit")) {
+				return;
+			}
 
-
-
-
-
+			if (template.if && !(
+					typeof value === "function"
+						? value()
+						: value
+					)) {
+				return;
+			}
+				template.data.oninit();
+		}());
 
 // For each child element create a new template branch.
 		template.childs = Array.prototype.map.apply(target.childNodes,[(function(x){
