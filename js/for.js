@@ -23,7 +23,6 @@
 			parent_data:template.data,
 			index:0
 		});
-		// console.log("For: ", target, data, template.data);
 		template.data = data;
 		target.removeAttribute("dill-for");
 		template.for = {

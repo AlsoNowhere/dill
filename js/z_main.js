@@ -23,21 +23,11 @@
 							: _target;
 					};
 				initial_data = ref.create_data_object({template_object:initial_data});
-
 				initial_data.oninit && initial_data.oninit();
-
 				template = ref.create_template(target,initial_data,module);
-
-				// console.log("Initial data: ", initial_data, template);
-
 				ref.render_element(target,template);
-				// renders.push({target:target,template:template});
 				renders[0] = {target:target,template:template};
 				return template.data;
-				// finish && finish.apply(template.data,[template.data]);
-				// return new Promise(function(resolve){
-				// 	resolve();
-				// });
 			}
 			this.change = function(event){
 				event && event();

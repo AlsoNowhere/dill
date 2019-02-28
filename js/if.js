@@ -19,17 +19,6 @@
 
 	window._dill.render_if = function(target,template){
 		var if_value = this.evaluator(template.if.value,template.data);
-
-		// if (template.if.value === "portfolio") {
-		// 	console.log("If 1: ", template.if.initial, if_value, "|", template.data[template.if.value]);
-		// }
-		// setTimeout(()=>{
-		// 	if (template.if.value === "portfolio") {
-		// 		console.log("If 2: ", template.if.initial, if_value, "|", template.data[template.if.value]);
-		// 	}
-		// },2);
-
-
 		if (!template.if.initial && if_value) {
 			target === undefined
 				? template.if.parent.appendChild(template.if.element)
@@ -53,9 +42,6 @@
 		else if (!template.if.initial && !if_value) {
 			return 0;
 		}
-		// if (template.if.value === "portfolio") {
-		// 	console.log("If 3: ", template.if.initial, if_value, "|", template.data[template.if.value]);
-		// }
 		return target;
 	}
 	

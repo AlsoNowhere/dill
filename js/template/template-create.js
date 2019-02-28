@@ -24,12 +24,10 @@
 			return template;
 		}
 
-// If the function exists handle the dill-extends attribute.
-		this.dill_extends && this.dill_extends(target,data);
-
 // This set for later. It needs to be set here because inside the template_for function it is removed from the element.
 // This attribute is removed so that the render function and template function do not get stuck in a loop.
 		has_for = target.hasAttribute("dill-for");
+
 
 // If the function exists handle the dill-for attribute.
 		this.template_for && this.template_for(target,template);
@@ -64,16 +62,6 @@
 				return;
 			}
 
-
-			// !(template.if
-			// 		&& (
-			// 		typeof value === "function"
-			// 			? value()
-			// 			: value
-			// 		)
-			// 	)) {
-
-
 			if (template.if && !(
 					typeof value === "function"
 						? value()
@@ -81,18 +69,7 @@
 					)) {
 				return;
 			}
-			// if (template.component
-			// 	&& template.data.hasOwnProperty("oninit")
-			// 	&& (template.if
-			// 		&& (
-			// 		typeof template.data[template.if.value] === "function"
-			// 			? template.data[template.if.value]()
-			// 			: template.data[template.if.value]
-			// 		)
-			// 	)
-			// 	|| !template.if) {
 				template.data.oninit();
-			// }
 		}());
 
 // For each child element create a new template branch.

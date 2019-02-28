@@ -13,10 +13,7 @@
 // Scope can be 'normal', 'isolate'
 			scope = input.scope,
 			Data = function(template_object){
-
-				// Object.keys(template_object?template_object:{}).forEach(function(key){
 				for (var key in (template_object?template_object:{})) {
-					// console.log("Key 1: ", key);
 					(function(){
 						var _value;
 						if (key !== "oninit" && key !== "ondestory") {
@@ -32,17 +29,6 @@
 						this[key] = template_object[key];
 					}.apply(this));
 				}
-				// }.bind(this));
-
-				// console.log("Key 2: ", this);
-
-				// if (this.hasOwnProperty("oninit")) {
-				// 	this.oninit();
-				// }
-
-
-
-
 
 // If this function has this argument then it has come from a dill-for.
 				if (index !== undefined) {
@@ -56,12 +42,6 @@
 				}
 			};
 
-		// console.log("Darpa: ", template_object);
-
-		// if (typeof template_object !== "object") {
-		// 	return {};
-		// }
-
 // Set default scoe to "normal" if undefined.
 		scope = scope === undefined || scope !== "isolate"
 			? "normal"
@@ -71,10 +51,7 @@
 		if (scope === "normal") {
 			Data.prototype = parent_data;
 		}
-
 		var output = new Data(template_object);
-		// console.log("Out: ", template_object, output, index);
-
 		return output;
 	}
 }());

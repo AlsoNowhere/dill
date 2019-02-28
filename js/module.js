@@ -42,9 +42,7 @@
 			}
 		}
 	}
-
 	window._dill.Module = Module;
-
 	var new_module = function(){
 		var Module = window._dill.Module;
 		return function(name,scope,modules){
