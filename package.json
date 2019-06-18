@@ -1,23 +1,26 @@
 {
-	"name": "Dillv2",
+	"name": "Dill",
 	"version": "1.0.0",
 	"description": "",
-	"main": "dill.js",
-	"directories": {
-		"example": "examples"
-	},
 	"scripts": {
 		"build:js": "./node_modules/.bin/gulp",
-		"build:js:prod": "./node_modules/.bin/gulp build-js-prod",
-		"watch:js": "./node_modules/.bin/gulp watch-js"
+		"build:js:prod": "./node_modules/.bin/gulp build:js:prod",
+		"build:js:min": "./node_modules/.bin/gulp minify",
+		"watch:js": "./node_modules/.bin/gulp watch:js",
+		"test:js": "./node_modules/.bin/karma start ./karma.config.js"
 	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
 	"devDependencies": {
-		"gulp": "^3.9.1",
-		"gulp-concat": "^2.6.1",
-		"gulp-sourcemaps": "^2.6.4",
-		"gulp-uglify": "^3.0.1"
+		"gulp": "^4.0.2",
+		"gulp-minify": "^3.1.0",
+		"karma-chrome-launcher": "^2.2.0",
+		"karma-jasmine": "^2.0.1",
+		"minify": "^4.1.1",
+		"rollup": "^1.12.3"
+	},
+	"dependencies": {
+		"karma": "^4.0.1"
 	}
 }
