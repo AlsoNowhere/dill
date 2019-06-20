@@ -1,4 +1,4 @@
-# dill
+# Dill
 Small scale JS framework
 
 Build JS stuff with this small framework.  
