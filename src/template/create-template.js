@@ -6,6 +6,7 @@ import { dillTemplate } from "../dill-attributes/dill-template";
 import { dillExtends } from "../dill-attributes/dill-extends";
 import { dillIf } from "../dill-attributes/dill-if";
 import { dillFor } from "../dill-attributes/dill-for";
+import { createData } from "../common/create-data";
 
 export var createTemplate = function(target, data, dillModule, templateParent){
 	var template = new Template(target, data, dillModule, templateParent);
@@ -32,12 +33,7 @@ export var createTemplate = function(target, data, dillModule, templateParent){
 	if (template.if && template.if.first === false) {
 		return template;
 	}
-	if (template.component) {
-		template.data._template = target.innerHTML;
-		target.innerHTML = template.component.template;
-		template.data.oninit && template.data.oninit();
-	}
-	template.attributes && reverseForEach(template.attributes, function(attribute, index){
+	template.attributes && reverseForEach(template.attributes, function cleanUpAttributes(attribute, index){
 		if (attribute.type === "event" || attribute.type === "hashReference") {
 			template.attributes.splice(index, 1);
 		}
@@ -45,8 +41,37 @@ export var createTemplate = function(target, data, dillModule, templateParent){
 			target.removeAttribute(attribute.name);
 		}
 	});
-	target.childNodes && forEach(target.childNodes, function(child){
-		template.children.push(createTemplate(child, data, dillModule, template));
-	});
+	if (template.component) {
+		(function(){
+			var recursiveComponentElements;
+			if (template.for && !template.for.first || !template.for) {
+				template.data._template = target.innerHTML;
+				target.innerHTML = template.component.template;
+				recursiveComponentElements = target.getElementsByTagName(template.component.name.toUpperCase());
+				forEach(recursiveComponentElements,function(element){
+					var hasConditional = false;
+					var currentElement = element;
+					while (currentElement !== target && !hasConditional) {
+						hasConditional = currentElement.hasAttribute("dill-if");
+						currentElement = currentElement.parentNode;
+					}
+					if (!hasConditional) {
+						throw new Error("Recursive element detected without conditional catch. To avoid infinite loop render was stopped.");
+					}
+				});
+				if (template.data.hasOwnProperty("oninit")) {
+					template.data.oninit();
+				}
+			}
+		}());
+	}
+	if (template.for && !template.for.first || !template.for) {
+		target.childNodes && forEach(target.childNodes, function generateChildTemplates(child){
+			template.children.push(createTemplate(child, data, dillModule, template));
+		});
+	}
+	if (template.for) {
+		template.for.first = false;
+	}
 	return template;
 };

@@ -41,6 +41,11 @@ export var Template = function(target, data, dillModule, templateParent){
 	}
 	if (component !== undefined && componentIsValid) {
 		this.component = component;
+		if (target.hasAttribute("dill-for")) {
+			this.data = data;
+			return;
+		}
+
 		this.data = createData(
 			component.baseData,
 			data,
@@ -55,6 +60,7 @@ export var Template = function(target, data, dillModule, templateParent){
 			var value = attribute.nodeValue;
 			this.data[name] = data[value];
 		}.bind(this));
+
 		return;
 	}
 

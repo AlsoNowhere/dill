@@ -276,6 +276,11 @@
 		}
 		if (component !== undefined && componentIsValid) {
 			this.component = component;
+			if (target.hasAttribute("dill-for")) {
+				this.data = data;
+				return;
+			}
+
 			this.data = createData(
 				component.baseData,
 				data,
@@ -290,6 +295,7 @@
 				var value = attribute.nodeValue;
 				this.data[name] = data[value];
 			}.bind(this));
+
 			return;
 		}
 
@@ -419,7 +425,8 @@
 			parent: target.parentNode,
 			initial: [null],
 			templates: [null],
-			value: value
+			value: value,
+			first: true
 		};
 		target.removeAttribute("dill-for");
 		template.for.clone = target.cloneNode(true);
@@ -451,12 +458,7 @@
 		if (template.if && template.if.first === false) {
 			return template;
 		}
-		if (template.component) {
-			template.data._template = target.innerHTML;
-			target.innerHTML = template.component.template;
-			template.data.oninit && template.data.oninit();
-		}
-		template.attributes && reverseForEach(template.attributes, function(attribute, index){
+		template.attributes && reverseForEach(template.attributes, function cleanUpAttributes(attribute, index){
 			if (attribute.type === "event" || attribute.type === "hashReference") {
 				template.attributes.splice(index, 1);
 			}
@@ -464,9 +466,38 @@
 				target.removeAttribute(attribute.name);
 			}
 		});
-		target.childNodes && forEach(target.childNodes, function(child){
-			template.children.push(createTemplate(child, data, dillModule, template));
-		});
+		if (template.component) {
+			(function(){
+				var recursiveComponentElements;
+				if (template.for && !template.for.first || !template.for) {
+					template.data._template = target.innerHTML;
+					target.innerHTML = template.component.template;
+					recursiveComponentElements = target.getElementsByTagName(template.component.name.toUpperCase());
+					forEach(recursiveComponentElements,function(element){
+						var hasConditional = false;
+						var currentElement = element;
+						while (currentElement !== target && !hasConditional) {
+							hasConditional = currentElement.hasAttribute("dill-if");
+							currentElement = currentElement.parentNode;
+						}
+						if (!hasConditional) {
+							throw new Error("Recursive element detected without conditional catch. To avoid infinite loop render was stopped.");
+						}
+					});
+					if (template.data.hasOwnProperty("oninit")) {
+						template.data.oninit();
+					}
+				}
+			}());
+		}
+		if (template.for && !template.for.first || !template.for) {
+			target.childNodes && forEach(target.childNodes, function generateChildTemplates(child){
+				template.children.push(createTemplate(child, data, dillModule, template));
+			});
+		}
+		if (template.for) {
+			template.for.first = false;
+		}
 		return template;
 	};
 
@@ -482,7 +513,6 @@
 			: !!dataValue;
 		var initial = template.if.initial;
 		var parent = template.if.parent;
-
 		if (initial === false && state === false) {
 			return 0;
 		}
@@ -494,13 +524,8 @@
 				template.if.first = true;
 				(function(){
 					var newTemplate = createTemplate(template.if.target, template.data, template.data._module, template);
-					// newTemplate.if = template.if;
-					// template = newTemplate;
 					template.attributes = newTemplate.attributes;
 					template.children = newTemplate.children;
-					// template.if.target.childNodes && forEach(template.if.target.childNodes, function(child){
-					// 	template.children.push(createTemplate(child, template.data, template.data._module));
-					// });
 				}());
 			}
 			template.if.initial = true;
