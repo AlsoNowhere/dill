@@ -28,15 +28,13 @@ describe("for over components",()=>{
 		data = dill.render(document.body,Data,tmodule);
 	});
 
-	it("should create the correct number of items",()=>{
-		expect(context.length).toBe(2);
-	});
-
-	it("should create two new scopes for each item",()=>{
-		const content1 = `${componentValue} ${data.list[0]} 0`;
-		const content2 = `${componentValue} ${data.list[1]} 1`;
-		expect(context[0].children[0].textContent).toBe(content1);
-		expect(context[1].children[0].textContent).toBe(content2);
+	describe("when looping over a component twice",()=>{
+		it("should create two new scopes for each item",()=>{
+			const content1 = `${componentValue} ${data.list[0]} 0`;
+			const content2 = `${componentValue} ${data.list[1]} 1`;
+			expect(context[0].children[0].textContent).toBe(content1);
+			expect(context[1].children[0].textContent).toBe(content2);
+		});
 	});
 
 });

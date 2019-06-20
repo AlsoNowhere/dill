@@ -14,7 +14,6 @@ export var renderIf = function(target, template){
 		: !!dataValue;
 	var initial = template.if.initial;
 	var parent = template.if.parent;
-
 	if (initial === false && state === false) {
 		return 0;
 	}
@@ -26,13 +25,8 @@ export var renderIf = function(target, template){
 			template.if.first = true;
 			(function(){
 				var newTemplate = createTemplate(template.if.target, template.data, template.data._module, template);
-				// newTemplate.if = template.if;
-				// template = newTemplate;
 				template.attributes = newTemplate.attributes;
 				template.children = newTemplate.children;
-				// template.if.target.childNodes && forEach(template.if.target.childNodes, function(child){
-				// 	template.children.push(createTemplate(child, template.data, template.data._module));
-				// });
 			}());
 		}
 		template.if.initial = true;
