@@ -98,13 +98,13 @@
 
 	var Module = function(){
 		var Module = function(name, modules){
+			var _module = this;
 			if (modules === undefined) {
 				modules = [];
 			}
 			this.components = {};
 			this.services = {};
 			this.name = name;
-			var _module = this;
 			forEach(modules,function(eachModule){
 				if (!(eachModule instanceof Module)) {
 					return;
@@ -170,15 +170,23 @@
 			var value = debracer(attribute.value, template.data);
 			var output;
 			var attributeIsDefined = !!target.attributes[name];
+
 			if (type === "bind") {
 				output = typeof template.data[value] === "function"
 					? template.data[value].apply(template.data)
 					: template.data[value];
 				if (elementProperties.indexOf(name) > -1) {
-					if (target[name] === output) {
+					if (target[name] === (typeof output === "number" ? output.toString() : output)) {
 						return;
 					}
-					target[name] = output;
+					if (target.nodeName === "SELECT") {
+						setTimeout(function(){
+							target[name] = output;
+						},0);
+					}
+					else {
+						target[name] = output;
+					}
 					return;
 				}
 				if (attributeIsDefined) {
@@ -196,9 +204,9 @@
 				}
 				target.setAttribute(name, output);
 			}
-			else if (type === "literal") {
-				target.setAttribute(name, value);
-			}
+			// else if (type === "literal") {
+			// 	target.setAttribute(name, value);
+			// }
 			else if (type === "default") {
 				if (attributeIsDefined) {
 					if (target.attributes[name].nodeValue === value) {
@@ -212,11 +220,20 @@
 		});
 	};
 
+	var recurseComponent = function(template,type){
+		if (template.component && template.data.hasOwnProperty(type) && typeof template.data[type] === "function") {
+			template.data[type]();
+		}
+		template.children && forEach(template.children,function(x){
+			recurseComponent(x,type);
+		});
+	};
+
 	var createData = function(data, prototype, type){
 		var Data = function(){
 			for (var item in data) {
 				(function(){
-					var _value;
+					var _value = data[item];
 					Object.defineProperty(this, item, {
 						get: function(){
 							return _value;
@@ -225,33 +242,48 @@
 							_value = value;
 						}
 					});
-					this[item] = data[item];
 				}.apply(this));
 			}
-			if (prototype !== null && type === undefined) {
+			if (prototype !== null && type !== "isolate") {
 				this._parent = prototype;
 			}
 		};
-		if (prototype !== null && type === undefined) {
+		if (prototype !== null && type !== "isolate") {
 			Data.prototype = prototype;
 		}
 		return new Data();
 	};
 
+	var isSurroundedBy = function(name, start, end){
+		if (end === undefined) {
+			end = start;
+		}
+		return name.substr(0,start.length) === start
+			&& name.substr(name.length - end.length, name.length) === end;
+	};
+
 	var Template = function(target, data, dillModule, templateParent){
 		var name = target.nodeName;
+
 		this.name = target.nodeName;
 		this.module = dillModule;
+
 		if (templateParent) {
 			this.templateParent = templateParent;
 		}
+
 		if (this.name === "#text") {
 			this.value = target.nodeValue;
 			this.data = data;
 			lockObject(this);
 			return this;
 		}
+
 		this.children = [];
+
+		var component = dillModule.components[name.toLowerCase()],
+			componentIsValid = true;
+
 		var checkParentTemplates = function(parent,condition){
 			if (!parent.templateParent) {
 				return;
@@ -262,8 +294,6 @@
 			}
 			checkParentTemplates(parent.templateParent,condition);
 		};
-		var component = dillModule.components[name.toLowerCase()];
-		var componentIsValid = true;
 
 		if (component && component.abstractConditions) {
 			componentIsValid = false;
@@ -274,35 +304,53 @@
 				checkParentTemplates(this,condition);
 			}.bind(this));
 		}
+
 		if (component !== undefined && componentIsValid) {
 			this.component = component;
+			if (target.hasAttribute("dill-for")) {
+				this.data = data;
+				return;
+			}
+
 			this.data = createData(
 				component.baseData,
 				data,
-				target.hasAttribute("dill-isolate")
-					? "isolate"
-					: undefined
+				target.hasAttribute("dill-isolate") && "isolate"
 			);
+
 			this.data._module = component.module;
 			target.removeAttribute("dill-isolate");
+
 			forEach(target.attributes,function(attribute){
-				var name = attribute.nodeName;
-				var value = attribute.nodeValue;
-				this.data[name] = data[value];
+				var name = attribute.nodeName,
+					value = attribute.nodeValue,
+					prop;
+				if (isSurroundedBy(name,"[","]")) {
+					prop = name.substring(1,name.length-1);
+					Object.defineProperty(this.data,prop,{
+						get: function(){
+							return data[value];
+						},
+						set: function(setValue){
+							data[value] = setValue;
+						}
+					});
+				}
+				else {
+					if (isSurroundedBy(value,"'")) {
+						this.data[name] = value.substring(1,value.length-1);
+					}
+					else {
+						this.data[name] = data[value];
+					}
+				}
 			}.bind(this));
+
 			return;
 		}
 
 		this.attributes = [];
 		this.data = data;
-	};
-
-	var isSurroundedBy = function(name, start, end){
-		if (end === undefined) {
-			end = start;
-		}
-		return name.substr(0,start.length) === start
-			&& name.substr(name.length - end.length, name.length) === end;
 	};
 
 	var isBinding = function(str){
@@ -317,9 +365,9 @@
 		var name = attribute.nodeName;
 		var value = attribute.nodeValue;
 		if (isSurroundedBy(name, "[", "]") || isBinding(name)) {
-			if (isSurroundedBy(value, "'")) {
-				return "literal";
-			}
+			// if (isSurroundedBy(value, "'")) {
+			// 	return "literal";
+			// }
 			return "bind";
 		}
 		if (isSurroundedBy(name, "(", ")") || isEvent(name)) {
@@ -419,7 +467,8 @@
 			parent: target.parentNode,
 			initial: [null],
 			templates: [null],
-			value: value
+			value: value,
+			first: true
 		};
 		target.removeAttribute("dill-for");
 		template.for.clone = target.cloneNode(true);
@@ -428,35 +477,30 @@
 
 	var createTemplate = function(target, data, dillModule, templateParent){
 		var template = new Template(target, data, dillModule, templateParent);
+
 		data = template.data;
+
 		if (template.name === "SCRIPT") {
 			return template;
 		}
+
 		target.attributes && target.attributes["dill-extends"] && (function(){
 			dillExtends(target, template);
 		}());
-		target.attributes && forEach(target.attributes, function(attribute, index){
-			if (attribute.nodeName === "dill-if") {
-				return dillIf(target, template);
-			}
-			if (attribute.nodeName === "dill-template") {
-				dillTemplate(target, template);
+
+		target.attributes && target.attributes["dill-if"] && dillIf(target, template);
+
+		target.attributes && reverseForEach(target.attributes, function(attribute){
+			if (!template.if && attribute.nodeName === "dill-template") {
 				return;
 			}
-			if (attribute.nodeName === "dill-for") {
+			if (!template.if && attribute.nodeName === "dill-for") {
 				return dillFor(target, template);
 			}
 			!template.component && template.attributes.push(new AttributeTemplate(target, template, attribute));
 		});
-		if (template.if && template.if.first === false) {
-			return template;
-		}
-		if (template.component) {
-			template.data._template = target.innerHTML;
-			target.innerHTML = template.component.template;
-			template.data.oninit && template.data.oninit();
-		}
-		template.attributes && reverseForEach(template.attributes, function(attribute, index){
+
+		template.attributes && reverseForEach(template.attributes, function cleanUpAttributes(attribute, index){
 			if (attribute.type === "event" || attribute.type === "hashReference") {
 				template.attributes.splice(index, 1);
 			}
@@ -464,11 +508,58 @@
 				target.removeAttribute(attribute.name);
 			}
 		});
-		target.childNodes && forEach(target.childNodes, function(child){
-			template.children.push(createTemplate(child, data, dillModule, template));
-		});
+
+		if (template.if && template.if.first === false) {
+			return template;
+		}
+
+		target.attributes && target.attributes["dill-template"] && dillTemplate(target, template);
+
+		template.component && (function(){
+			var recursiveComponentElements;
+			if (!(template.for ? !template.for.first : !template.for)) {
+				return;
+			}
+			data._template = target.innerHTML;
+			target.innerHTML = template.component.template;
+			recursiveComponentElements = target.getElementsByTagName(template.component.name.toUpperCase());
+			forEach(recursiveComponentElements,function(element){
+				var hasConditional = false,
+					currentElement = element;
+				while (currentElement !== target && !hasConditional) {
+					hasConditional = currentElement.hasAttribute("dill-if");
+					currentElement = currentElement.parentNode;
+				}
+				if (!hasConditional) {
+					throw new Error("Recursive element detected without conditional catch. To avoid infinite loop render was stopped.");
+				}
+			});
+			if (data.hasOwnProperty("oninit")) {
+				data.oninit();
+			}
+		}());
+		
+		if (template.for ? !template.for.first : !template.for) {
+			target.childNodes && forEach(target.childNodes, function generateChildTemplates(child){
+				template.children.push(createTemplate(child, data, dillModule, template));
+			});
+		}
+
+		if (template.for) {
+			template.for.first = false;
+		}
+
 		return template;
 	};
+
+	// var recurseComponent = function(template,type){
+	// 	if (template.component.hasOwnProperty(type) && typeof template.component[type] === "function") {
+	// 		template.component[type]();
+	// 	}
+	// 	forEach(template.childs,function(x){
+	// 		recurseComponent(x,type);
+	// 	});
+	// }
 
 	var renderIf = function(target, template){
 		var data = template.data;
@@ -477,43 +568,112 @@
 		var dataValue = typeof data[value] === "function"
 			? data[value]()
 			: data[value];
-		var state = invert
+		var oldState = template.if.initial;
+		var newState = invert
 			? !dataValue
 			: !!dataValue;
-		var initial = template.if.initial;
 		var parent = template.if.parent;
-
-		if (initial === false && state === false) {
+		if (oldState === false && newState === false) {
 			return 0;
 		}
-		if (initial === false && state === true) {
+		if (oldState === false && newState === true) {
 			target === undefined
 				? parent.appendChild(template.if.target)
 				: parent.insertBefore(template.if.target,target);
 			if (template.if.first === false) {
 				template.if.first = true;
 				(function(){
-					var newTemplate = createTemplate(template.if.target, template.data, template.data._module, template);
-					// newTemplate.if = template.if;
-					// template = newTemplate;
-					template.attributes = newTemplate.attributes;
-					template.children = newTemplate.children;
-					// template.if.target.childNodes && forEach(template.if.target.childNodes, function(child){
-					// 	template.children.push(createTemplate(child, template.data, template.data._module));
-					// });
+					// var newTemplate = createTemplate(template.if.target, template.data, template.data._module, template);
+					// template.attributes = newTemplate.attributes;
+					// template.children = newTemplate.children;
+
+
+
+
+
+
+
+
+					template.if.target.attributes
+						&& template.if.target.attributes["dill-template"]
+						&& dillTemplate(template.if.target, template);
+
+					if (template.component) {
+						(function(){
+							var recursiveComponentElements;
+							// if (template.for && !template.for.first || !template.for) {
+								template.data._template = template.if.target.innerHTML;
+								template.if.target.innerHTML = template.component.template;
+								recursiveComponentElements = template.if.target.getElementsByTagName(template.component.name.toUpperCase());
+								forEach(recursiveComponentElements,function(element){
+									var hasConditional = false,
+										currentElement = element;
+									while (currentElement !== template.if.target && !hasConditional) {
+										hasConditional = currentElement.hasAttribute("dill-if");
+										currentElement = currentElement.parentNode;
+									}
+									if (!hasConditional) {
+										throw new Error("Recursive element detected without conditional catch. To avoid infinite loop render was stopped.");
+									}
+								});
+								if (template.data.hasOwnProperty("oninit")) {
+									template.data.oninit();
+								}
+							// }
+						}());
+					}
+					// if (template.for && !template.for.first || !template.for) {
+						template.if.target.childNodes && forEach(template.if.target.childNodes, function generateChildTemplates(child){
+							template.children.push(createTemplate(child, template.data, template.data._module, template));
+						});
+					// }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 				}());
 			}
-			template.if.initial = true;
-			if (template.component) {
-				template.data.onadd && template.data.onadd();
+			else {
+				// console.log("New init: ", template);
+				recurseComponent(template,"oninit");
 			}
+			template.if.initial = true;
+			// if (template.component) {
+			// 	template.data.onadd && template.data.onadd();
+			// }
+
+
 			return "added";
 		}
-		else if (initial === true && state === false) {
+		else if (oldState === true && newState === false) {
 			parent.removeChild(template.if.target);
-			if (template.component) {
-				template.data.onremove && template.data.onremove();
-			}
+			// if (template.component) {
+			// 	template.data.onremove && template.data.onremove();
+			// }
+
+			recurseComponent(template,"onremove");
+
 			template.if.initial = false;
 			return 0;
 		}
@@ -579,6 +739,7 @@
 						while (i < initialLength) {
 							next = currentTarget.nextElementSibling;
 							parent.removeChild(currentTarget);
+							recurseComponent(template,"onremove");
 							currentTarget = next;
 							i++;
 						}
@@ -645,6 +806,7 @@
 				}
 				next = currentTarget.nextSibling;
 				parent.removeChild(currentTarget);
+				recurseComponent(template,"onremove");
 				if (next === null) {
 					parent.appendChild(clone());
 					currentTarget = parent.children[parent.children.length - 1];
@@ -671,6 +833,40 @@
 		return newLength;
 	};
 
+	const Options = function(options){
+		if (options === undefined) {
+			return;
+		}
+		var possibleOptions = [
+			{
+				name: "noIf",
+				type: "bool"
+			},
+			{
+				name: "noFor",
+				type: "bool"
+			},
+			{
+				name: "parent",
+				type: "object"
+			}
+		];
+		Object.keys(options).forEach(function(key){
+			var find = possibleOptions.filter(function(x){
+				return x.name === key;
+			});
+			var output = options[key];
+			if (find.length !== 1) {
+				return;
+			}
+			if (options[key]) {
+				this[key] = find[0].type === "bool"
+					? !!output
+					: output;
+			}
+		}.bind(this));
+	};
+
 	var renderTextNode = function(target, template){
 		var value = target.nodeValue;
 		var newValue = debracer(template.value, template.data);
@@ -680,17 +876,13 @@
 		target.nodeValue = newValue;
 	};
 
-	// options
-	// an optional object that provides further commands
-	// {
-	// noIf. bool - prevents dill-if being checked. When an element is added it is rendered again. To prevent If being checked twice turn it off the second time
-	// }
-
 	var renderTarget = function(target, template, condition, options){
 		var name = template.name;
 		var ifReturns;
 		var forReturns;
-		options = options || {};
+		if (!(options instanceof Options)) {
+			options = new Options();
+		}
 		if (condition === target) {
 			condition = true;
 		}
@@ -707,14 +899,24 @@
 			if (!options.noIf && template.hasOwnProperty("if")) {
 				ifReturns = renderIf(target, template);
 				if (ifReturns === "added") {
-					renderTarget(target.previousElementSibling, template, condition, {noIf: true});
+					(function(){
+						var childs = options && options.parent && options.parent.childNodes;
+						renderTarget(
+							target === undefined
+								? childs[childs.length - 1]
+								: target.previousElementSibling,
+							template,
+							condition,
+							new Options({noIf: true})
+						);
+					}());
 					return 1;
 				}
 				if (ifReturns === 0) {
 					return ifReturns;
 				}
 			}
-			if (template.hasOwnProperty("for")) {
+			if (!options.noFor && template.hasOwnProperty("for")) {
 				forReturns = renderFor(target, template, condition);
 				if (typeof forReturns ===  "number") {
 					return forReturns;
@@ -725,7 +927,18 @@
 		(function(){
 			var index = 0;
 			forEach(template.children, function(_template, i){
-				var output = renderTarget(target.childNodes[index], _template, condition);
+				if (target === undefined) {
+					return;
+				}
+				var child = target.childNodes[index];
+				var output = renderTarget(
+					child,
+					_template,
+					condition,
+					child === undefined
+						? new Options({parent:target})
+						: undefined
+				);
 				index += output;
 			});
 		}());
@@ -752,6 +965,9 @@
 		data.oninit && data.oninit();
 		data._module = dillModule;
 		var template = createTemplate(target, data, dillModule);
+
+		// console.log("Template: ", template);
+
 		renders.push({target: target, template: template});
 		change();
 		return data;

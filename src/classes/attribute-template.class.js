@@ -14,9 +14,9 @@ var attributeType = function(attribute){
 	var name = attribute.nodeName;
 	var value = attribute.nodeValue
 	if (isSurroundedBy(name, "[", "]") || isBinding(name)) {
-		if (isSurroundedBy(value, "'")) {
-			return "literal";
-		}
+		// if (isSurroundedBy(value, "'")) {
+		// 	return "literal";
+		// }
 		return "bind";
 	}
 	if (isSurroundedBy(name, "(", ")") || isEvent(name)) {

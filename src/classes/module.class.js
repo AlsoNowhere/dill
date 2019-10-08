@@ -6,13 +6,13 @@ import { forEach } from "../common/for-each";
 
 export var Module = function(){
 	var Module = function(name, modules){
+		var _module = this;
 		if (modules === undefined) {
 			modules = [];
 		}
 		this.components = {};
 		this.services = {};
 		this.name = name;
-		var _module = this;
 		forEach(modules,function(eachModule){
 			if (!(eachModule instanceof Module)) {
 				return;

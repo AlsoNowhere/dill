@@ -46,11 +46,6 @@ describe("render attributes | ",()=>{
 		expect(context[1].attributes.type.nodeValue).toBe(data.type2());
 	});
 
-	it("should render an attribute binding where value is literal",()=>{
-		const expected = "email";
-		expect(context[2].attributes.type.nodeValue).toBe(expected);
-	});
-
 	describe("when attribute is property",()=>{
 		it("should set the value",()=>{
 			expect(context[3].value).toBe(data.value);
@@ -64,5 +59,4 @@ describe("render attributes | ",()=>{
 	it("should get an element reference using the pound symbol",()=>{
 		expect(data.input).toBe(context[0]);
 	});
-
 });
