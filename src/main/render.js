@@ -19,6 +19,9 @@ export var render = function(target, Data, dillModule){
 	data.oninit && data.oninit();
 	data._module = dillModule;
 	var template = createTemplate(target, data, dillModule);
+
+	// console.log("Template: ", template);
+
 	renders.push({target: target, template: template});
 	change();
 	return data;

@@ -4,6 +4,7 @@ import { createTemplate } from "../template/create-template";
 import { renderTarget } from "./render-target";
 import { createData } from "../common/create-data";
 import { recycleData } from "../common/recycle-data";
+import { recurseComponent } from "../common/recurse-component";
 
 export var renderFor = function(target, template, condition){
 	var initialLength = template.for.initial.length;
@@ -34,6 +35,7 @@ export var renderFor = function(target, template, condition){
 					while (i < initialLength) {
 						next = currentTarget.nextElementSibling;
 						parent.removeChild(currentTarget);
+						recurseComponent(template,"onremove");
 						currentTarget = next;
 						i++;
 					}
@@ -100,6 +102,7 @@ export var renderFor = function(target, template, condition){
 			}
 			next = currentTarget.nextSibling;
 			parent.removeChild(currentTarget);
+			recurseComponent(template,"onremove");
 			if (next === null) {
 				parent.appendChild(clone());
 				currentTarget = parent.children[parent.children.length - 1];

@@ -1,5 +1,5 @@
 {
-	"name": "Dill",
+	"name": "dill",
 	"version": "1.0.0",
 	"description": "",
 	"scripts": {
@@ -7,7 +7,7 @@
 		"build:js:prod": "./node_modules/.bin/gulp build:js:prod",
 		"build:js:min": "./node_modules/.bin/gulp minify",
 		"watch:js": "./node_modules/.bin/gulp watch:js",
-		"test:js": "./node_modules/.bin/karma start ./karma.config.js"
+		"test": "./node_modules/.bin/karma start ./karma.config.js"
 	},
 	"keywords": [],
 	"author": "",

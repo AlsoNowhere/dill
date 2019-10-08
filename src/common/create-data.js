@@ -3,7 +3,7 @@ export var createData = function(data, prototype, type){
 	var Data = function(){
 		for (var item in data) {
 			(function(){
-				var _value;
+				var _value = data[item];
 				Object.defineProperty(this, item, {
 					get: function(){
 						return _value;
@@ -12,14 +12,13 @@ export var createData = function(data, prototype, type){
 						_value = value;
 					}
 				});
-				this[item] = data[item];
 			}.apply(this));
 		}
-		if (prototype !== null && type === undefined) {
+		if (prototype !== null && type !== "isolate") {
 			this._parent = prototype;
 		}
 	};
-	if (prototype !== null && type === undefined) {
+	if (prototype !== null && type !== "isolate") {
 		Data.prototype = prototype;
 	}
 	return new Data();
