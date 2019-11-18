@@ -1,18 +1,26 @@
 
-import { Template } from "../classes/template.class";
-import { createTemplate } from "../template/create-template";
+import { createDillTemplate } from "../template/create-template";
 import { renderTarget } from "./render-target";
 import { createData } from "../common/create-data";
 import { recycleData } from "../common/recycle-data";
+import { recurseComponent } from "../common/recurse-component";
+import { logger } from "../common/logger.service";
 
 export var renderFor = function(target, template, condition){
 	var initialLength = template.for.initial.length;
 	var value = typeof template.data[template.for.value] === "function"
 		? template.data[template.for.value]()
 		: template.data[template.for.value];
+
 	if (value === undefined) {
+		logger.error("Count not find " + template.for.value + " on current scope.");
 		throw new Error("Count not find " + template.for.value + " on current scope.");
 	}
+	else if (!(value instanceof Array)) {
+		logger.error("This property: " + template.for.value + " is not an Array and therefore not iterable in a dill-for");
+		throw new Error("This property: " + template.for.value + " is not an Array and therefore not iterable in a dill-for");
+	}
+
 	var initial = template.for.initial;
 	var newLength = value.length;
 	var currentTarget = target;
@@ -34,6 +42,7 @@ export var renderFor = function(target, template, condition){
 					while (i < initialLength) {
 						next = currentTarget.nextElementSibling;
 						parent.removeChild(currentTarget);
+						recurseComponent(template,"onremove");
 						currentTarget = next;
 						i++;
 					}
@@ -59,7 +68,7 @@ export var renderFor = function(target, template, condition){
 						data._item = value[0];
 						data._index = 0;
 						(function(){
-							var newTemplate = createTemplate(currentTarget, data, template.module, template);
+							var newTemplate = createDillTemplate(currentTarget, data, template.module, template);
 							templates[0] = newTemplate;
 							renderTarget(currentTarget, newTemplate, condition);
 						}(0));
@@ -73,7 +82,7 @@ export var renderFor = function(target, template, condition){
 							var data = createData(value[j], template.data);
 							data._item = value[j];
 							data._index = j;
-							var newTemplate = createTemplate(currentTarget, data, template.module, template);
+							var newTemplate = createDillTemplate(currentTarget, data, template.module, template);
 							templates[j] = newTemplate;
 							renderTarget(currentTarget, newTemplate, condition);
 						}());
@@ -100,6 +109,7 @@ export var renderFor = function(target, template, condition){
 			}
 			next = currentTarget.nextSibling;
 			parent.removeChild(currentTarget);
+			recurseComponent(template,"onremove");
 			if (next === null) {
 				parent.appendChild(clone());
 				currentTarget = parent.children[parent.children.length - 1];
@@ -112,7 +122,7 @@ export var renderFor = function(target, template, condition){
 				var data = createData(value[i], template.data);
 				data._item = value[i];
 				data._index = i;
-				var newTemplate = createTemplate(currentTarget, data, template.module, template);
+				var newTemplate = createDillTemplate(currentTarget, data, template.module, template);
 				templates[i] = newTemplate;
 				renderTarget(currentTarget, newTemplate, condition);
 			}());
