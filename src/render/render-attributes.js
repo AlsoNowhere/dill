@@ -11,15 +11,23 @@ export var renderAttributes = function(target, template){
 		var value = debracer(attribute.value, template.data);
 		var output;
 		var attributeIsDefined = !!target.attributes[name];
+
 		if (type === "bind") {
 			output = typeof template.data[value] === "function"
 				? template.data[value].apply(template.data)
 				: template.data[value];
 			if (elementProperties.indexOf(name) > -1) {
-				if (target[name] === output) {
+				if (target[name] === (typeof output === "number" ? output.toString() : output)) {
 					return;
 				}
-				target[name] = output;
+				if (target.nodeName === "SELECT") {
+					setTimeout(function(){
+						target[name] = output;
+					},0);
+				}
+				else {
+					target[name] = output;
+				}
 				return;
 			}
 			if (attributeIsDefined) {
@@ -37,9 +45,9 @@ export var renderAttributes = function(target, template){
 			}
 			target.setAttribute(name, output);
 		}
-		else if (type === "literal") {
-			target.setAttribute(name, value);
-		}
+		// else if (type === "literal") {
+		// 	target.setAttribute(name, value);
+		// }
 		else if (type === "default") {
 			if (attributeIsDefined) {
 				if (target.attributes[name].nodeValue === value) {

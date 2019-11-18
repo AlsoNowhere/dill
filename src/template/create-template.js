@@ -1,52 +1,121 @@
 
-import { Template } from "../classes/template.class";
-import { AttributeTemplate } from "../classes/attribute-template.class";
+import { DillTemplate } from "../classes/DillTemplate.class";
+import { AttributeTemplate } from "../classes/AttributeTemplate.class";
 import { forEach, reverseForEach } from "../common/for-each";
 import { dillTemplate } from "../dill-attributes/dill-template";
 import { dillExtends } from "../dill-attributes/dill-extends";
 import { dillIf } from "../dill-attributes/dill-if";
 import { dillFor } from "../dill-attributes/dill-for";
+import { logger } from "../common/logger.service";
 
-export var createTemplate = function(target, data, dillModule, templateParent){
-	var template = new Template(target, data, dillModule, templateParent);
-	data = template.data;
-	if (template.name === "SCRIPT") {
-		return template;
+export var createDillTemplate = function(
+	targetElement,
+	initialDillDataModel,
+	dillModule,
+	templateParent
+){
+	var newDillTemplate = new DillTemplate(
+		targetElement,
+		initialDillDataModel,
+		dillModule,
+		templateParent
+	);
+
+	var dillDataModel = newDillTemplate.data;
+
+	if (newDillTemplate.name === "SCRIPT" || (targetElement.hasAttribute instanceof Function && targetElement.hasAttribute("dill-ignore"))) {
+		return newDillTemplate;
 	}
-	target.attributes && target.attributes["dill-extends"] && (function(){
-		dillExtends(target, template);
-	}());
-	target.attributes && forEach(target.attributes, function(attribute, index){
-		if (attribute.nodeName === "dill-if") {
-			return dillIf(target, template);
-		}
-		if (attribute.nodeName === "dill-template") {
-			dillTemplate(target, template);
+
+	if (!!newDillTemplate.component && dillDataModel.hasOwnProperty("onprerender")) {
+		dillDataModel.onprerender();
+	}
+
+	!!targetElement.attributes
+		&& targetElement.attributes["dill-extends"]
+		&& !!dillExtends
+		&&  (function(){
+			dillExtends(targetElement, newDillTemplate);
+		}());
+
+	!!targetElement.attributes
+		&& targetElement.attributes["dill-if"]
+		&& !!dillIf
+		&& dillIf(targetElement, newDillTemplate);
+
+	!!targetElement.attributes
+		&& reverseForEach(targetElement.attributes, function(attribute){
+			if (!newDillTemplate.if && attribute.nodeName === "dill-template") {
+				return;
+			}
+			if (!newDillTemplate.if && attribute.nodeName === "dill-for" && !!dillFor) {
+				return dillFor(targetElement, newDillTemplate);
+			}
+			!newDillTemplate.component
+				&& newDillTemplate.attributes.push(
+					new AttributeTemplate(targetElement, newDillTemplate, attribute)
+				);
+		});
+
+	!!newDillTemplate.attributes
+		&& reverseForEach(newDillTemplate.attributes, function cleanUpAttributes(attribute, index){
+			if (attribute.type === "event" || attribute.type === "hashReference") {
+				newDillTemplate.attributes.splice(index, 1);
+			}
+			if (attribute.type !== "default") {
+				targetElement.removeAttribute(attribute.name);
+			}
+		});
+
+	if (!!newDillTemplate.if && newDillTemplate.if.first === false) {
+		return newDillTemplate;
+	}
+
+	targetElement.attributes
+		&& targetElement.attributes["dill-template"]
+		&& !!dillTemplate
+		&& dillTemplate(targetElement, newDillTemplate);
+
+	!!newDillTemplate.component && (function(){
+		var recursiveComponentElements;
+		if (!(newDillTemplate.for ? !newDillTemplate.for.first : !newDillTemplate.for)) {
 			return;
 		}
-		if (attribute.nodeName === "dill-for") {
-			return dillFor(target, template);
-		}
-		!template.component && template.attributes.push(new AttributeTemplate(target, template, attribute));
-	});
-	if (template.if && template.if.first === false) {
-		return template;
+		dillDataModel._template = targetElement.innerHTML;
+		targetElement.innerHTML = newDillTemplate.component.template;
+		recursiveComponentElements = targetElement.getElementsByTagName(newDillTemplate.component.name.toUpperCase());
+		forEach(recursiveComponentElements,function(element){
+			var hasConditional = false,
+				currentElement = element;
+			while (currentElement !== targetElement && !hasConditional) {
+				hasConditional = currentElement.hasAttribute("dill-if");
+				currentElement = currentElement.parentNode;
+			}
+			if (!hasConditional) {
+				logger.error("Recursive element detected without conditional catch. To avoid infinite loop render was stopped.");
+				throw new Error("Recursive element detected without conditional catch. To avoid infinite loop render was stopped.");
+			}
+		});
+	}());
+	
+	if (
+		newDillTemplate.for
+			? !newDillTemplate.for.first
+			: !newDillTemplate.for
+	) {
+		targetElement.childNodes
+			&& forEach(targetElement.childNodes, function generateChildTemplates(child){
+				newDillTemplate.children.push(createDillTemplate(child, dillDataModel, dillModule, newDillTemplate));
+			});
 	}
-	if (template.component) {
-		template.data._template = target.innerHTML;
-		target.innerHTML = template.component.template;
-		template.data.oninit && template.data.oninit();
+
+	if (newDillTemplate.for) {
+		newDillTemplate.for.first = false;
 	}
-	template.attributes && reverseForEach(template.attributes, function(attribute, index){
-		if (attribute.type === "event" || attribute.type === "hashReference") {
-			template.attributes.splice(index, 1);
-		}
-		if (attribute.type !== "default") {
-			target.removeAttribute(attribute.name);
-		}
-	});
-	target.childNodes && forEach(target.childNodes, function(child){
-		template.children.push(createTemplate(child, data, dillModule, template));
-	});
-	return template;
+
+	if (!!newDillTemplate.component && dillDataModel.hasOwnProperty("oninit")) {
+		dillDataModel.oninit();
+	}
+
+	return newDillTemplate;
 };

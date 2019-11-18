@@ -19,10 +19,6 @@ gulp.task("watch:js",()=>{
 	gulp.watch("./src/**/*.js", gulp.series("build:js"));
 });
 
-gulp.task("build:js:prod",()=>{
-	return gulp.series("build:js", "minify");
-});
-
 gulp.task("minify", ()=>{
 	return gulp.src(["./dist/dill.js"])
 		.pipe(minify({
@@ -32,5 +28,7 @@ gulp.task("minify", ()=>{
 		}))
 		.pipe(gulp.dest("dist"));
 });
+
+gulp.task("build:js:prod", gulp.series("build:js", "minify"));
 
 gulp.task("default", gulp.series("build:js"));

@@ -5,7 +5,8 @@ export var dillFor = function(target, template){
 		parent: target.parentNode,
 		initial: [null],
 		templates: [null],
-		value: value
+		value: value,
+		first: true
 	};
 	target.removeAttribute("dill-for");
 	template.for.clone = target.cloneNode(true);
