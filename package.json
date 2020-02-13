@@ -7,10 +7,14 @@
 		"build:js:prod": "./node_modules/.bin/gulp build:js:prod",
 		"build:js:min": "./node_modules/.bin/gulp minify",
 		"watch:js": "./node_modules/.bin/gulp watch:js",
+<<<<<<< HEAD
 		"test": "./node_modules/.bin/karma start ./karma.config.js",
 		"build:rollup": "rollup --config --watch",
 		"build:rollup:prod": "node ready-for-production ./src && rollup --config && node clean-for-production ./src",
 		"minify": "uglifyjs ./dist/dill.min.js -o ./dist/dill.min.js -c -m --mangle-props"
+=======
+		"test": "./node_modules/.bin/karma start ./karma.config.js"
+>>>>>>> master
 	},
 	"keywords": [],
 	"author": "",
