@@ -7,20 +7,23 @@
 		"build:js:prod": "./node_modules/.bin/gulp build:js:prod",
 		"build:js:min": "./node_modules/.bin/gulp minify",
 		"watch:js": "./node_modules/.bin/gulp watch:js",
-		"test": "./node_modules/.bin/karma start ./karma.config.js"
+		"test": "./node_modules/.bin/karma start ./karma.config.js",
+		"build:rollup": "rollup --config --watch",
+		"build:rollup:prod": "node ready-for-production ./src && rollup --config && node clean-for-production ./src",
+		"minify": "uglifyjs ./dist/dill.min.js -o ./dist/dill.min.js -c -m --mangle-props"
 	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
 	"devDependencies": {
-		"gulp": "^4.0.2",
-		"gulp-minify": "^3.1.0",
-		"karma-chrome-launcher": "^2.2.0",
-		"karma-jasmine": "^2.0.1",
-		"minify": "^4.1.1",
-		"rollup": "^1.12.3"
+		"karma-chrome-launcher": "^3.1.0",
+		"karma-jasmine": "^3.1.0",
+		"rollup": "^1.27.5",
+		"rollup-plugin-progress": "^1.1.1",
+		"rollup-plugin-uglify": "^6.0.3"
 	},
 	"dependencies": {
-		"karma": "^4.0.1"
+		"karma": "^4.0.1",
+		"uglify-js": "^3.7.6"
 	}
 }
