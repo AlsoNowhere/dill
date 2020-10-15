@@ -1,20 +1,15 @@
 
-import { dillModule } from "./module/module";
-import { create } from "./create/create";
-import { change } from "./change/change";
-import { Component } from "./component/component";
-import { reset } from "./reset/reset";
+import { createDillElement } from "./services/create-dill-element.service";
+import { createDillApp } from "./services/create-dill-app.service";
+import { setUpChange } from "./services/change.service";
 
-var Dill = function(){
-	this.module = dillModule;
-	this.create = create;
-	this.change = change;
-	this.Component = Component;
-	this.reset = reset;
-}
+import { Component } from "./models/Component.model";
+import { render } from "./services/render/render.service";
 
-// CJS | mode
-// export var dill = new Dill();
-
-// script src | mode
-window.dill = new Dill();
+export const dill = new function Dill(){
+    this.Component = Component;
+    this.element = createDillElement;
+    this.create = createDillApp;
+    this.change = setUpChange(render);
+};
+window.dill = dill;

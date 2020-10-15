@@ -1,29 +1,16 @@
 {
-	"name": "dill",
-	"version": "1.0.0",
-	"description": "",
+	"name": "dill-framework",
+	"version": "3.0.0",
+	"description": "Frontend framework with jsx.",
+	"main": "./dist/dill.js",
 	"scripts": {
-		"build:js": "./node_modules/.bin/gulp",
-		"build:js:prod": "./node_modules/.bin/gulp build:js:prod",
-		"build:js:min": "./node_modules/.bin/gulp minify",
-		"watch:js": "./node_modules/.bin/gulp watch:js",
-		"test": "./node_modules/.bin/karma start ./karma.config.js",
-		"build:rollup": "rollup --config --watch",
-		"build:rollup:prod": "node ready-for-production ./src && rollup --config && node clean-for-production ./src",
-		"minify": "uglifyjs ./dist/dill.min.js -o ./dist/dill.min.js -c -m --mangle-props"
+		"build:js": "rollup --config",
+		"watch:js": "rollup --config --watch"
 	},
-	"keywords": [],
-	"author": "",
-	"license": "ISC",
+	"license": "MIT",
 	"devDependencies": {
-		"karma-chrome-launcher": "^3.1.0",
-		"karma-jasmine": "^3.1.0",
-		"rollup": "^1.27.5",
-		"rollup-plugin-progress": "^1.1.1",
-		"rollup-plugin-uglify": "^6.0.3"
-	},
-	"dependencies": {
-		"karma": "^4.0.1",
-		"uglify-js": "^3.7.6"
+		"@rollup/plugin-node-resolve": "^7.1.1",
+		"rollup": "^2.1.0",
+		"sage-library": "^1.1.1"
 	}
 }
