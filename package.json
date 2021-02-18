@@ -1,6 +1,6 @@
 {
 	"name": "dill-framework",
-	"version": "3.1.1",
+	"version": "3.3.0",
 	"description": "Frontend framework with jsx.",
 	"main": "./dist/dill.js",
 	"scripts": {
@@ -9,8 +9,8 @@
 	},
 	"license": "MIT",
 	"devDependencies": {
-		"@rollup/plugin-node-resolve": "^7.1.1",
-		"rollup": "^2.1.0",
+		"@rollup/plugin-node-resolve": "^11.2.0",
+		"rollup": "^2.39.0",
 		"sage-library": "^1.1.1"
 	}
 }
