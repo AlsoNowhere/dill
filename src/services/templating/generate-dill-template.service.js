@@ -1,9 +1,11 @@
 
 import { forEach } from "sage-library";
 
-import { templateTextNode } from "./template/template-textnode.service";
-import { templateComponent } from "./template/template-component.service";
-import { templateHtmlElement } from "./template/template-html-element.service";
+import { templateTextNode } from "./template-textnode.service";
+import { templateComponent } from "./template-component.service";
+import { templateHtmlElement } from "./template-html-element.service";
+
+import { site } from "../../data/site.data";
 
 /*
     Dill works in two parts.
@@ -20,8 +22,7 @@ export const generateDillTemplate = (
     rootElement,
     parentData,
     dillElements,
-    isSvgOrChildOfSVG = false,
-    change
+    isSvgOrChildOfSVG = false
 ) => {
 
 /*
@@ -40,13 +41,30 @@ export const generateDillTemplate = (
 */
     return forEach(dillElements, dillElement => {
         if (typeof dillElement === "string") {
-            return templateTextNode(rootElement, parentData, dillElement);
+            return templateTextNode(rootElement,
+                parentData,
+                dillElement
+            );
         }
-        else if (dillElement.Component) {
-            return templateComponent(change, generateDillTemplate, parentTemplate, rootElement, parentData, dillElement, isSvgOrChildOfSVG);
+        else if (!!dillElement.Component) {
+            return templateComponent(parentTemplate,
+                rootElement,
+                parentData,
+                dillElement,
+                isSvgOrChildOfSVG,
+                // (a,b,c,d,e) => generateDillTemplate(a,b,c,d,e)
+            );
         }
-        else if (dillElement.nodeName) {
-            return templateHtmlElement(change, generateDillTemplate, parentTemplate, rootElement, parentData, dillElement, isSvgOrChildOfSVG);
+        else if (!!dillElement.nodeName) {
+            return templateHtmlElement(parentTemplate,
+                rootElement,
+                parentData,
+                dillElement,
+                isSvgOrChildOfSVG,
+                // (a,b,c,d,e) => generateDillTemplate(a,b,c,d,e)
+            );
         }
     });
 }
+
+site.generateDillTemplate = generateDillTemplate;

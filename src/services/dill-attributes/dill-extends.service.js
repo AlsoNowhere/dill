@@ -1,5 +1,5 @@
 
-import { resolveData } from "../../dill-core/services/resolve-data.service";
+import { resolveData } from "../../logic/resolve-data.logic";
 
 export const templateDillExtends = (attributes, data) => {
     if (!attributes["dill-extends"]) {

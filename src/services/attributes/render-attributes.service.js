@@ -1,8 +1,8 @@
 
 import { forEach } from "sage-library";
 
-import { deBracer } from "../../dill-core/services/de-bracer.service";
-import { resolveData } from "../../dill-core/services/resolve-data.service";
+import { deBracer } from "../../logic/de-bracer.logic";
+import { resolveData } from "../../logic/resolve-data.logic";
 
 import { elementProperties } from "../../data/element-properties.data";
 
@@ -16,8 +16,12 @@ export const renderAttributes = (element, attributes, data) => {
 
         const {name, value, dillAttribute} = attribute;
 
-        const oldValue = elementProperties.includes(name) ? element[name] : (element.attributes[name] && element.attributes[name].nodeValue);
-        const newValue = dillAttribute ? resolveData(data, value) : deBracer(value, data);
+        const oldValue = elementProperties.includes(name)
+            ? element[name]
+            : (element.attributes[name] && element.attributes[name].nodeValue);
+        const newValue = dillAttribute
+            ? resolveData(data, value)
+            : deBracer(value, data);
 
         if (oldValue !== newValue) {
             if (elementProperties.includes(name)) {

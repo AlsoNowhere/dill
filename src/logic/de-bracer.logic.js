@@ -1,5 +1,5 @@
 
-import { resolveData } from "./resolve-data.service";
+import { resolveData } from "./resolve-data.logic";
 
 export var deBracer = (string, data) => string
     .replace(/{[A-Za-z0-9_$]+}/g, (match, index) => {

@@ -7,9 +7,9 @@ import { templateDillIf } from "../dill-attributes/dill-if.service";
 import { templateDillFor } from "../dill-attributes/dill-for.service";
 import { templateDillTemplate } from "../dill-attributes/dill-template.service";
 
+import { site } from "../../data/site.data";
+
 export const templateHtmlElement = (
-    change,
-    generateDillTemplate,
     parentTemplate,
     rootElement,
     parentData,
@@ -36,28 +36,48 @@ export const templateHtmlElement = (
 /* Dill tool to add many attribtues to an element or Component. dill-extends */
     templateDillExtends(attributes, parentData);
 
+    {
+        const quickLookUp = [
+            parentTemplate,
+            rootElement,
+            htmlElement,
+            attributes,
+            parentData,
+            dillElement,
+            isSvgOrChildOfSVG
+        ];
 /* Handle dill-if and dill-for attributes. */
 /* DillIf is a conditional flag for whether we should add this element or not. */
-    const dillIf = templateDillIf(parentTemplate, rootElement, htmlElement, attributes, parentData, dillElement, isSvgOrChildOfSVG);
+        var dillIf = templateDillIf(...quickLookUp);
 /* DillFor is a repeat flag that will loop over an Array and clone the target. */
-    const dillFor = templateDillFor(parentTemplate, rootElement, htmlElement, attributes, parentData, dillElement, isSvgOrChildOfSVG);
+        var dillFor = templateDillFor(...quickLookUp);
+    }
 
 /* DillIf and DillFor are structural changes and affect what will be rendered. This variable captures what should happen next. */
     const elementWillBeRendered = !dillFor && (!dillIf || dillIf.currentValue);
+    // const elementWillBeRendered = true;
 
 /*
     This function takes the list of attributes on the Template and checks them, removing any attribute which is not valid and has another purpose.
     We then save the attributes that will be checked on each rerender.
 */
     const attributesForTemplate = elementWillBeRendered
-        ? templateAttributes(change, htmlElement, attributes, parentData)
+        ? templateAttributes(
+            htmlElement,
+            attributes,
+            parentData
+        )
         : [];
 
 /* Add this HTML to the document. */
     elementWillBeRendered && rootElement.appendChild(htmlElement);
 
 /* Handle the attribute dill-template. */
-    const dillTemplate = elementWillBeRendered && templateDillTemplate(parentData, attributes, dillElement);
+    const dillTemplate = elementWillBeRendered && templateDillTemplate(
+        parentData,
+        attributes,
+        // dillElement
+    );
 
 /* We create a new template. */
     const newTemplate = new Template(
@@ -74,13 +94,12 @@ export const templateHtmlElement = (
 
 /* Recursively continue to check child templates. */
     newTemplate.childTemplates = elementWillBeRendered
-        ? generateDillTemplate(
+        ? site.generateDillTemplate(
             newTemplate,
             htmlElement,
             parentData,
             dillElement.childTemplates,
-            isSvgOrChildOfSVG,
-            change
+            isSvgOrChildOfSVG
         )
         : [];
 

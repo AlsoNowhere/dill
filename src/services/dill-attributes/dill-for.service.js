@@ -1,18 +1,27 @@
 
 import { forEach } from "sage-library";
 
-import { createData } from "../../dill-core/services/create-data.service";
-import { resolveData } from "../../dill-core/services/resolve-data.service";
-
-import { cleanData } from "../dill-engine/clean-data.service";
-import { insertAfter } from "../logic/insert-after.service";
-import { getPreviousHtmlTemplate } from "../logic/get-previous-html-template.service";
-import { getHtmlAndComponentChildTemplates } from "../logic/get-html-and-component-child-templates.service";
-import { getAllHtmlElementTemplatesFromComponent } from "../logic/get-all-htmlelemets-from-component.service";
+import { createData } from "../../logic/create-data.logic";
+import { resolveData } from "../../logic/resolve-data.logic";
+import { cleanData } from "../../logic/clean-data.logic";
+import { insertAfter } from "../../logic/insert-after.logic";
+import { getPreviousHtmlTemplate } from "../../logic/get-previous-html-template.logic";
+import { getHtmlAndComponentChildTemplates } from "../../logic/get-html-and-component-child-templates.logic";
+import { getAllHtmlElementTemplatesFromComponent } from "../../logic/get-all-htmlelemets-from-component.logic";
 
 import { DillFor } from "../../models/DillFor.model";
 
-export const templateDillFor = (parentTemplate, rootElement, element, attributes, data, dillElement, isSvgOrChildOfSVG) => {
+import { site } from "../../data/site.data";
+
+export const templateDillFor = (
+    parentTemplate,
+    rootElement,
+    element,
+    attributes,
+    data,
+    dillElement,
+    isSvgOrChildOfSVG
+) => {
     if (!attributes["dill-for"]) {
         return;
     }
@@ -33,7 +42,11 @@ export const templateDillFor = (parentTemplate, rootElement, element, attributes
     );
 }
 
-export const renderDillFor = (change, generateDillTemplate, render, dillFor, template, data) => {
+export const renderDillFor = (
+    dillFor,
+    template,
+    data
+) => {
 
     const newValue = resolveData(data, dillFor.value);
     const oldLength = dillFor.currentLength;
@@ -63,13 +76,12 @@ export const renderDillFor = (change, generateDillTemplate, render, dillFor, tem
             Generate a new Template for the cloned Template.
             This Template generation will always return an Array with one item, we destructure the Array here to get that one value.
         */
-                const [newTemplate] = generateDillTemplate(
+                const [newTemplate] = site.generateDillTemplate(
                     template,
                     intermediary,
                     newData,
                     newDillElement,
-                    dillFor.isSvgOrChildOfSVG,
-                    change
+                    dillFor.isSvgOrChildOfSVG
                 );
 
         /*
@@ -98,7 +110,11 @@ export const renderDillFor = (change, generateDillTemplate, render, dillFor, tem
             .pop().htmlElement;
 
         forEach([...intermediary.children], element => {
-            insertAfter(template.rootElement, previousElement, element);
+            insertAfter(
+                template.rootElement,
+                previousElement,
+                element
+            );
             previousElement = element;
         });
 
@@ -126,7 +142,7 @@ export const renderDillFor = (change, generateDillTemplate, render, dillFor, tem
     forEach(newList, (x, i) => {
         cleanData(x.data, newValue[i], i, data)
     });
-    forEach(dillFor.templates, render);
+    forEach(dillFor.templates, site.render);
 
     dillFor.currentLength = newLength;
 }
