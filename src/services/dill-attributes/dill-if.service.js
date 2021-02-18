@@ -1,20 +1,30 @@
 
 import { forEach } from "sage-library";
 
-import { resolveData } from "../../dill-core/services/resolve-data.service";
-
-import { getPreviousHtmlTemplate } from "../logic/get-previous-html-template.service";
-import { getAllHtmlTemplatesFromChildTemplates } from "../logic/get-all-html-templates-from-child-templates.service";
-import { getHtmlAndComponentChildTemplates } from "../logic/get-html-and-component-child-templates.service";
-import { insertAfter } from "../logic/insert-after.service";
-import { fireEvents } from "../logic/fire-events.service";
 import { componentAttributes } from "../attributes/component-attributes.service";
 import { templateDillExtends } from "./dill-extends.service";
 import { templateAttributes } from "../attributes/template-attributes.service";
 
+import { resolveData } from "../../logic/resolve-data.logic";
+import { getPreviousHtmlTemplate } from "../../logic/get-previous-html-template.logic";
+import { getAllHtmlTemplatesFromChildTemplates } from "../../logic/get-all-html-templates-from-child-templates.logic";
+import { getHtmlAndComponentChildTemplates } from "../../logic/get-html-and-component-child-templates.logic";
+import { insertAfter } from "../../logic/insert-after.logic";
+import { fireEvents } from "../../logic/fire-events.logic";
+
 import { DillIf } from "../../models/DillIf.model";
 
-export const templateDillIf = (parentTemplate, rootElement, element, attributes, data, dillElement, isSvgOrChildOfSVG) => {
+import { site } from "../../data/site.data";
+
+export const templateDillIf = (
+    parentTemplate,
+    rootElement,
+    element,
+    attributes,
+    data,
+    dillElement,
+    isSvgOrChildOfSVG
+) => {
     if (!attributes["dill-if"]) {
         return;
     }
@@ -38,7 +48,11 @@ export const templateDillIf = (parentTemplate, rootElement, element, attributes,
     );
 }
 
-export const renderDillIf = (change, generateDillTemplate, dillIf, template, data) => {
+export const renderDillIf = (
+    dillIf,
+    template,
+    data
+) => {
     if (!dillIf) {
         return;
     }
@@ -58,24 +72,31 @@ export const renderDillIf = (change, generateDillTemplate, dillIf, template, dat
     /* An intermediate Element is needed as the rootElement to generate a new Template. */
             const intermediary  = document.createElement("DIV");
 
-            const childTemplates = generateDillTemplate(
+            const childTemplates = site.generateDillTemplate(
                 template,
                 isComponent ? intermediary : template.htmlElement,
                 data,
                 isComponent ? dillIf.dillElement.Component.component.elements : dillIf.dillElement.childTemplates,
-                dillIf.isSvgOrChildOfSVG,
-                change
+                dillIf.isSvgOrChildOfSVG
             );
 
         /* Build Component inherited properties. */
             const attributes = {...(dillIf.dillElement.attributes || {})};
             templateDillExtends(attributes, data);
             if (isComponent) {
-                componentAttributes(attributes, data, data._parent);
+                componentAttributes(
+                    attributes,
+                    data,
+                    data._parent
+                );
             }
             else {
                 template.attributes.push(
-                    ...templateAttributes(change, template.htmlElement, attributes, data)
+                    ...templateAttributes(
+                        template.htmlElement,
+                        attributes,
+                        data
+                    )
                 );
             }
 
@@ -84,13 +105,11 @@ export const renderDillIf = (change, generateDillTemplate, dillIf, template, dat
 
             template.childTemplates = childTemplates;
 
-            isComponent && fireEvents(template, "oninit");
-
             dillIf.templated = true;
-        }
 
-/* Lifecycle hook. */
-        isComponent && fireEvents(template, "oninserted");
+/* Lifecycle hooks. */
+            fireEvents(template, "oninit");
+        }
 
 /* Add the new Elements to the document. */
         let previousHtmlTemplate = getPreviousHtmlTemplate(dillIf, template);
@@ -99,11 +118,20 @@ export const renderDillIf = (change, generateDillTemplate, dillIf, template, dat
             : [template];
 
         forEach(allHtmlTemplates, elementTemplate => {
-            insertAfter(template.rootElement, previousHtmlTemplate && previousHtmlTemplate.htmlElement, elementTemplate.htmlElement);
+            insertAfter(
+                template.rootElement,
+                previousHtmlTemplate && previousHtmlTemplate.htmlElement,
+                elementTemplate.htmlElement
+            );
             previousHtmlTemplate = elementTemplate;
         });
 
         dillIf.currentValue = true;
+
+/* Lifecycle hooks. */
+        fireEvents(template, "oninserted");
+        setTimeout(() => fireEvents(template, "onaftercontent"), 0);
+
     }
 
     if (changedToFalse) {

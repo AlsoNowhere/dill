@@ -1,12 +1,15 @@
 
 import { forEach } from "sage-library";
 
-import { deBracer } from "../../dill-core/services/de-bracer.service";
-import { resolveData } from "../../dill-core/services/resolve-data.service";
+import { deBracer } from "../../logic/de-bracer.logic";
+import { resolveData } from "../../logic/resolve-data.logic";
+
+// import { change } from "../../services/rendering/change.service";
 
 import { Attribute } from "../../models/Attribute.model";
 
 import { elementProperties } from "../../data/element-properties.data";
+import { site } from "../../data/site.data";
 
 /*
     This function takes an object of attributes and acts in four ways.
@@ -16,7 +19,11 @@ import { elementProperties } from "../../data/element-properties.data";
      - Any other valid property (doesn't start with 'dill-') then this is a normal attribute and will be rendered as such.
     Attributes are not added during the template stage but the render stage.
 */
-export const templateAttributes = (change, element, attributes, data) => {
+export const templateAttributes = (
+    element,
+    attributes,
+    data
+) => {
 
     if (!attributes) {
         return [];
@@ -31,18 +38,30 @@ export const templateAttributes = (change, element, attributes, data) => {
         }
 
         if (name.substr(name.length - 2) === "--") {
-            element.addEventListener(name.substring(0, name.length - 2), event => {
 
+            const eventName = name.substring(0, name.length - 2);
+
+            element.addEventListener(eventName, event => {
+
+
+
+// <
+//  Get the result of the function that runs on this event.
                 const result = data[value](event, element);
-        /*
-            Get the result of the function that runs on this event.
-            If it is false then do not run any rerenders.
-            Otherwise rerender the whole app.
-        */
+// >
+
+
+
+// <
+//   If this result is false then do not run any rerenders.
                 if (result === false) {
                     return;
                 }
-                change();
+// >
+
+
+
+                site.runChangeOnEvents && site.change(data);
 
             });
 

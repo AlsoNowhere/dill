@@ -1,8 +1,12 @@
 
+import { SaveChildTemplates } from "./SaveChildTemplates.model";
+
 export const DillTemplate = function(
     lookup,
-    oldValues
+    referenceData
 ){
     this.lookup = lookup;
-    this.oldValues = oldValues;
+    this.savedComponents = [
+        new SaveChildTemplates(referenceData)
+    ];
 }

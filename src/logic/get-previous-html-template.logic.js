@@ -1,5 +1,5 @@
 
-import { getAllHtmlElementTemplatesFromComponent } from "./get-all-htmlelemets-from-component.service";
+import { getAllHtmlElementTemplatesFromComponent } from "./get-all-htmlelemets-from-component.logic";
 
 export const getPreviousHtmlTemplate = (dillModel, template) => {
 

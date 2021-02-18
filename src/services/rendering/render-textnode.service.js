@@ -1,5 +1,5 @@
 
-import { deBracer } from "../../dill-core/services/de-bracer.service";
+import { deBracer } from "../../logic/de-bracer.logic";
 
 export const renderTextNode = (element, value, data) => {
 

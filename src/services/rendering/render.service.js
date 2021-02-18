@@ -5,9 +5,13 @@ import { renderAttributes } from "../attributes/render-attributes.service";
 import { renderTextNode } from "./render-textnode.service";
 import { renderDillIf } from "../dill-attributes/dill-if.service";
 import { renderDillFor } from "../dill-attributes/dill-for.service";
-import { generateDillTemplate } from "../generate-dill-template.service";
-import { setUpChange } from "../change.service";
 import { renderDillTemplate } from "../dill-attributes/dill-template.service";
+
+import { fireEvents } from "../../logic/fire-events.logic";
+
+import { site } from "../../data/site.data";
+
+
 
 /*
     This function takes a Template instance and updates the connected element using the latest values.
@@ -18,33 +22,57 @@ import { renderDillTemplate } from "../dill-attributes/dill-template.service";
 */
 export const render = template => {
 
-    const change = setUpChange(render);
+
 
     if (template instanceof Array) {
         forEach(template, render);
         return;
     }
 
+
+
+// Debugging
+    // console.log("Template: ", template);
+
     const { htmlElement, textNode, textValue, attributes, data, dillIf, dillFor } = template;
+
 
     if (!!textNode) {
         return renderTextNode(textNode, textValue, data);
     }
 
-    const newDillIf = renderDillIf(change, generateDillTemplate, dillIf, template, data);
+
+
+    const newDillIf = renderDillIf(dillIf, template, data);
+
+
 
     if (newDillIf && !newDillIf.currentValue) {
         return;
     }
 
+
+
     if (!!dillFor) {
-        renderDillFor(change, generateDillTemplate, render, dillFor, template, data);
+        renderDillFor(dillFor, template, data);
         return;
     }
 
+
+
     !!htmlElement && renderAttributes(htmlElement, attributes, data);
 
-    !!htmlElement && renderDillTemplate(change, generateDillTemplate, template);
+
+
+    !!htmlElement && renderDillTemplate(template);
+
+
+
+    fireEvents(template, "onchange");
+
+
 
     template.childTemplates instanceof Array && forEach(template.childTemplates, render);
 }
+
+site.render = render;

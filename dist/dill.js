@@ -1,57 +1,3 @@
-const Component = function(
-    elements,
-    isolated = false
-){
-    this.elements = elements;
-    this.isolated = isolated;
-
-    Object.freeze(this);
-};
-
-const DillElement = function(
-    element,
-    attributes,
-    childTemplates
-){
-
-/*
-    A dill element can either be a Component or a HTML element.
-    e.g
-    <Component />
-    or
-    <div></div>
-    We check for which one this is below.
-*/
-    if (typeof element === "string") {
-        this.nodeName = element;
-    }
-    else if (element instanceof Function) {
-        this.Component = element;
-    }
-
-    this.attributes = attributes;
-
-    this.childTemplates = (
-        childTemplates instanceof Array
-            ? childTemplates
-            : [childTemplates]
-    );
-
-    Object.freeze(this);
-};
-
-const createDillElement = function(
-    element,
-    attributes,
-    childTemplate
-){
-    return new DillElement(
-        element,
-        attributes,
-        childTemplate instanceof Array ? childTemplate : [...arguments].slice(2)
-    );
-};
-
 const define = (scope, property, getAction, setAction, objectDefinitions = {}) => {
     if (!(scope instanceof Object)) {
         throw new Error("Thyme, define, scope -- You must pass an Object as the scope");
@@ -109,44 +55,11 @@ const forEach = baseForEach(
     1
 );
 
-const reverseForEach = baseForEach(
-    array => array.length - 1,
-    i => i >= 0,
-    -1
-);
-
-const dillDataPropertyDefinitions = {
-    // writable: true,
-    enumerable: true,
-    configurable: true
-};
-
-const createData = (newData, parentData) => {
-    const Data = function(){
-        for (let key in newData) {
-            let _value = newData[key];
-            // Object.defineProperty(this, key, {
-            //     get: () => _value,
-            //     set: value => _value = value,
-            //     enumerable: true,
-            //     configurable: true
-            // });
-            define(this, key, () => _value, value => _value = value, dillDataPropertyDefinitions);
-        }
-        if (parentData !== undefined) {
-            this._parent = parentData;
-        }
-    };
-    Data.prototype = parentData === undefined
-        ? {}
-        : parentData;
-    return new Data();
-};
-
 var resolveData = (data, value) => {
     var output = data[value] instanceof Function
-        ? data[value]()
-        : data[value];
+        && data[value].component === undefined
+            ? data[value]()
+            : data[value];
     return output === undefined
         ? ""
         : output;
@@ -159,6 +72,16 @@ var deBracer = (string, data) => string
         }
         return resolveData(data, match.substring(1, match.length-1));
     });
+
+const Component = function(
+    elements,
+    isolated = false
+){
+    this.elements = elements;
+    this.isolated = isolated;
+
+    Object.freeze(this);
+};
 
 const Template = function(
     rootElement,
@@ -192,10 +115,16 @@ const Template = function(
     Object.seal(this);
 };
 
-const templateTextNode = (rootElement, parentData, dillElement) => {
+const templateTextNode = (
+    rootElement,
+    parentData,
+    dillElement
+) => {
     const textValue = dillElement;
 
-    const textNode = document.createTextNode(deBracer(dillElement, parentData));
+    const textNode = document.createTextNode(
+        deBracer(dillElement, parentData)
+    );
 
     rootElement.appendChild(textNode);
 
@@ -207,6 +136,12 @@ const templateTextNode = (rootElement, parentData, dillElement) => {
     );
 };
 
+const dillDataPropertyDefinitions = {
+    // writable: true,
+    enumerable: true,
+    configurable: true
+};
+
 const addProperty = (data, name, _value) => {
     define(data, name, () => _value, value => _value = value, dillDataPropertyDefinitions);
 };
@@ -216,20 +151,29 @@ const addProperty = (data, name, _value) => {
     This way we can pass properties to a Component from the parent Component.
 */
 const componentAttributes = (attributes, componentData, parentData) => {
-    forEach(Object.entries(attributes), attribute => {
-        const [name, value] = attribute;
+    forEach(Object.entries(attributes), ([name, value]) => {
 
         if (name.substr(0, 5) === "dill-") {
             return;
         }
 
-/* If attribute value starts and ends with ' then do not look this value up from the data but set it literally. */
+// <
+// If attribute value starts and ends with ' then do not look this value up from the data but set it literally.
         if (value.charAt(0) === "'" && value.charAt(value.length - 1) === "'") {
             addProperty(componentData, name, value.substring(1, value.length - 1));
             return;
         }
+// >
 
-        define(componentData, name, () => parentData[value], _value => parentData[value] = _value, dillDataPropertyDefinitions);
+
+
+        define(
+            componentData,
+            name,
+            () => parentData[value],
+            _value => parentData[value] = _value,
+            dillDataPropertyDefinitions
+        );
     });
 };
 
@@ -241,6 +185,118 @@ const templateDillExtends = (attributes, data) => {
     delete attributes["dill-extends"];
     const properties = resolveData(data, value);
     Object.assign(attributes, properties);
+};
+
+const Attribute = function(
+    name,
+    value,
+    dillAttribute = false
+){
+    this.name = name;
+    this.value = value;
+    this.dillAttribute = dillAttribute;
+
+    Object.freeze(this);
+};
+
+const elementProperties = [
+    "value",
+    "checked"
+];
+
+const site = new function SiteData(){
+    this.app = null;
+    this.strictMode = false;
+    this.devMode = false;
+    this.generateDillTemplate = null;
+    this.render = null;
+    this.change = null;
+    this.runChangeOnEvents = true;
+
+    Object.seal(this);
+};
+
+/*
+    This function takes an object of attributes and acts in four ways.
+     - If the attribute name ends in --- then add this element to the data.
+     - If the attribute name ends in -- then add an event to the element.
+     - If the attribute name ends in - then this attribute value will be set from a property on the data.
+     - Any other valid property (doesn't start with 'dill-') then this is a normal attribute and will be rendered as such.
+    Attributes are not added during the template stage but the render stage.
+*/
+const templateAttributes = (
+    element,
+    attributes,
+    data
+) => {
+
+    if (!attributes) {
+        return [];
+    }
+
+    return forEach(Object.entries(attributes), attribute => {
+        const [name, value] = attribute;
+
+        if (name.substr(name.length - 3) === "---") {
+            data[name.substring(0, name.length - 3)] = element;
+            return 0;
+        }
+
+        if (name.substr(name.length - 2) === "--") {
+
+            const eventName = name.substring(0, name.length - 2);
+
+            element.addEventListener(eventName, event => {
+
+
+
+// <
+//  Get the result of the function that runs on this event.
+                const result = data[value](event, element);
+// >
+
+
+
+// <
+//   If this result is false then do not run any rerenders.
+                if (result === false) {
+                    return;
+                }
+// >
+
+
+
+                site.runChangeOnEvents && site.change(data);
+
+            });
+
+            return 0;
+        }
+
+        if (name.charAt(name.length - 1) === "-") {
+            
+/* Render initial attribute. */
+            const newValue = resolveData(data, value);
+
+            elementProperties.includes(name.substring(0, name.length - 1))
+                ? (element[name.substring(0, name.length - 1)] = newValue)
+                : element.setAttribute(name.substring(0, name.length - 1), newValue);
+
+            return new Attribute(name.substring(0, name.length - 1), value, true);
+        }
+
+        if (name.substr(0, 5) === "dill-") {
+            return 0;
+        }
+
+/* Render initial attribute. */
+        const newValue = deBracer(value, data);
+        elementProperties.includes(name)
+            ? (element[name] = newValue)
+            : element.setAttribute(name, newValue);
+
+        return new Attribute(name, value);
+    });
 };
 
 const getAllHtmlElementTemplatesFromComponent = (component, arr = []) => {
@@ -271,7 +327,7 @@ const getPreviousHtmlTemplate = (dillModel, template) => {
     return getAllHtmlElementTemplatesFromComponent(previousHtmlTemplate).pop();
 };
 
-const getAllHtmlTemplatesFromChildTemplates = (childTemplates) => {
+const getAllHtmlTemplatesFromChildTemplates = childTemplates => {
     return childTemplates
         .map(x => x.Component ? getAllHtmlElementTemplatesFromComponent(x) : x)
         .reduce((a, b) => (b instanceof Array ? a.push(...b) : a.push(b), a), []);
@@ -306,103 +362,30 @@ const insertAfter = (parentElement, previousSiblingElement, incomingElement) => 
     }
 };
 
+// import { resolveData } from "./resolve-data.logic";
+
 const fireEvents = (template, eventName) => {
-    if (template.dillIf && !resolveData(template.data, template.dillIf.value)) {
+
+/* If template has a dillIf and its false then element won't be rendered so do not run event. */
+    if (!!template.dillIf && !template.dillIf.currentValue) {
         return;
     }
+
+/* Handle a list of elements here */
     if (template.dillFor) {
-        const newLength = resolveData(template.data, template.dillFor.value).length;
-        forEach(template.dillFor.templates.slice(0, newLength), x =>  fireEvents(x, eventName));
+        // const newLength = resolveData(template.data, template.dillFor.value).length;
+        // forEach(template.dillFor.templates.slice(0, newLength), x =>  fireEvents(x, eventName));
+        forEach(template.dillFor.templates, x =>  fireEvents(x, eventName));
         return;
     }
+
+/* Only run when at the root of the Component being checked, instead of running for every child element. */
     if (template.Component && template.data.hasOwnProperty(eventName)) {
         template.data[eventName]();
     }
+
+/* Cycle through child templates too. */
     forEach(template.childTemplates, x =>  fireEvents(x, eventName));
-};
-
-const Attribute = function(
-    name,
-    value,
-    dillAttribute = false
-){
-    this.name = name;
-    this.value = value;
-    this.dillAttribute = dillAttribute;
-
-    Object.freeze(this);
-};
-
-const elementProperties = [
-    "value",
-    "checked"
-];
-
-/*
-    This function takes an object of attributes and acts in four ways.
-     - If the attribute name ends in --- then add this element to the data.
-     - If the attribute name ends in -- then add an event to the element.
-     - If the attribute name ends in - then this attribute value will be set from a property on the data.
-     - Any other valid property (doesn't start with 'dill-') then this is a normal attribute and will be rendered as such.
-    Attributes are not added during the template stage but the render stage.
-*/
-const templateAttributes = (change, element, attributes, data) => {
-
-    if (!attributes) {
-        return [];
-    }
-
-    return forEach(Object.entries(attributes), attribute => {
-        const [name, value] = attribute;
-
-        if (name.substr(name.length - 3) === "---") {
-            data[name.substring(0, name.length - 3)] = element;
-            return 0;
-        }
-
-        if (name.substr(name.length - 2) === "--") {
-            element.addEventListener(name.substring(0, name.length - 2), event => {
-
-                const result = data[value](event, element);
-        /*
-            Get the result of the function that runs on this event.
-            If it is false then do not run any rerenders.
-            Otherwise rerender the whole app.
-        */
-                if (result === false) {
-                    return;
-                }
-                change();
-
-            });
-
-            return 0;
-        }
-
-        if (name.charAt(name.length - 1) === "-") {
-            
-/* Render initial attribute. */
-            const newValue = resolveData(data, value);
-
-            elementProperties.includes(name.substring(0, name.length - 1))
-                ? (element[name.substring(0, name.length - 1)] = newValue)
-                : element.setAttribute(name.substring(0, name.length - 1), newValue);
-
-            return new Attribute(name.substring(0, name.length - 1), value, true);
-        }
-
-        if (name.substr(0, 5) === "dill-") {
-            return 0;
-        }
-
-/* Render initial attribute. */
-        const newValue = deBracer(value, data);
-        elementProperties.includes(name)
-            ? (element[name] = newValue)
-            : element.setAttribute(name, newValue);
-
-        return new Attribute(name, value);
-    });
 };
 
 const DillIf = function(
@@ -426,7 +409,15 @@ const DillIf = function(
     this.invertedCondition = invertedCondition;
 };
 
-const templateDillIf = (parentTemplate, rootElement, element, attributes, data, dillElement, isSvgOrChildOfSVG) => {
+const templateDillIf = (
+    parentTemplate,
+    rootElement,
+    element,
+    attributes,
+    data,
+    dillElement,
+    isSvgOrChildOfSVG
+) => {
     if (!attributes["dill-if"]) {
         return;
     }
@@ -450,7 +441,11 @@ const templateDillIf = (parentTemplate, rootElement, element, attributes, data, 
     );
 };
 
-const renderDillIf = (change, generateDillTemplate, dillIf, template, data) => {
+const renderDillIf = (
+    dillIf,
+    template,
+    data
+) => {
     if (!dillIf) {
         return;
     }
@@ -470,24 +465,31 @@ const renderDillIf = (change, generateDillTemplate, dillIf, template, data) => {
     /* An intermediate Element is needed as the rootElement to generate a new Template. */
             const intermediary  = document.createElement("DIV");
 
-            const childTemplates = generateDillTemplate(
+            const childTemplates = site.generateDillTemplate(
                 template,
                 isComponent ? intermediary : template.htmlElement,
                 data,
                 isComponent ? dillIf.dillElement.Component.component.elements : dillIf.dillElement.childTemplates,
-                dillIf.isSvgOrChildOfSVG,
-                change
+                dillIf.isSvgOrChildOfSVG
             );
 
         /* Build Component inherited properties. */
             const attributes = {...(dillIf.dillElement.attributes || {})};
             templateDillExtends(attributes, data);
             if (isComponent) {
-                componentAttributes(attributes, data, data._parent);
+                componentAttributes(
+                    attributes,
+                    data,
+                    data._parent
+                );
             }
             else {
                 template.attributes.push(
-                    ...templateAttributes(change, template.htmlElement, attributes, data)
+                    ...templateAttributes(
+                        template.htmlElement,
+                        attributes,
+                        data
+                    )
                 );
             }
 
@@ -496,13 +498,11 @@ const renderDillIf = (change, generateDillTemplate, dillIf, template, data) => {
 
             template.childTemplates = childTemplates;
 
-            isComponent && fireEvents(template, "oninit");
-
             dillIf.templated = true;
-        }
 
-/* Lifecycle hook. */
-        isComponent && fireEvents(template, "oninserted");
+/* Lifecycle hooks. */
+            fireEvents(template, "oninit");
+        }
 
 /* Add the new Elements to the document. */
         let previousHtmlTemplate = getPreviousHtmlTemplate(dillIf, template);
@@ -511,11 +511,20 @@ const renderDillIf = (change, generateDillTemplate, dillIf, template, data) => {
             : [template];
 
         forEach(allHtmlTemplates, elementTemplate => {
-            insertAfter(template.rootElement, previousHtmlTemplate && previousHtmlTemplate.htmlElement, elementTemplate.htmlElement);
+            insertAfter(
+                template.rootElement,
+                previousHtmlTemplate && previousHtmlTemplate.htmlElement,
+                elementTemplate.htmlElement
+            );
             previousHtmlTemplate = elementTemplate;
         });
 
         dillIf.currentValue = true;
+
+/* Lifecycle hooks. */
+        fireEvents(template, "oninserted");
+        setTimeout(() => fireEvents(template, "onaftercontent"), 0);
+
     }
 
     if (changedToFalse) {
@@ -533,6 +542,22 @@ const renderDillIf = (change, generateDillTemplate, dillIf, template, data) => {
     return dillIf;
 };
 
+const createData = (newData, parentData) => {
+    const Data = function(){
+        for (let key in newData) {
+            let _value = newData[key];
+            define(this, key, () => _value, value => _value = value, dillDataPropertyDefinitions);
+        }
+        if (parentData !== undefined) {
+            this._parent = parentData;
+        }
+    };
+    Data.prototype = parentData === undefined
+        ? {}
+        : parentData;
+    return new Data();
+};
+
 const cleanData = (targetObject, mapObject, index, parentData) => {
 
     if (!targetObject.hasOwnProperty("_item")) {
@@ -541,31 +566,44 @@ const cleanData = (targetObject, mapObject, index, parentData) => {
     else if (targetObject._item !== mapObject) {
         targetObject._item = mapObject;
     }
+
+
+
     if (!targetObject.hasOwnProperty("_index")) {
         addProperty(targetObject, "_index", index);
     }
     else if (targetObject._index !== index) {
         targetObject._index = index;
     }
+
+
+
     if (!targetObject.hasOwnProperty("_parent")) {
         addProperty(targetObject, "_parent", parentData);
     }
+
+
 
     if (!(mapObject instanceof Object)) {
         return targetObject;
     }
 
-    for (let key in targetObject) {
-        if (key === "_item" || key === "_index" || key === "_parent") {
-            continue;
-        }
-        if (Object.prototype.hasOwnProperty.call(targetObject, key)
-            && mapObject[key] === undefined) {
-            delete targetObject[key];
-        }
-    }
+
+
+    // for (let key in targetObject) {
+    //     if (key === "_item" || key === "_index" || key === "_parent") {
+    //         continue;
+    //     }
+    //     if (Object.prototype.hasOwnProperty.call(targetObject, key)
+    //         && mapObject[key] === undefined) {
+    //         delete targetObject[key];
+    //     }
+    // }
+
+
 
     for (let key in mapObject) {
+        delete targetObject[key];
         addProperty(targetObject, key, mapObject[key]);
     }
 
@@ -591,7 +629,15 @@ const DillFor = function(
     this.templates = [];
 };
 
-const templateDillFor = (parentTemplate, rootElement, element, attributes, data, dillElement, isSvgOrChildOfSVG) => {
+const templateDillFor = (
+    parentTemplate,
+    rootElement,
+    element,
+    attributes,
+    data,
+    dillElement,
+    isSvgOrChildOfSVG
+) => {
     if (!attributes["dill-for"]) {
         return;
     }
@@ -612,7 +658,11 @@ const templateDillFor = (parentTemplate, rootElement, element, attributes, data,
     );
 };
 
-const renderDillFor = (change, generateDillTemplate, render, dillFor, template, data) => {
+const renderDillFor = (
+    dillFor,
+    template,
+    data
+) => {
 
     const newValue = resolveData(data, dillFor.value);
     const oldLength = dillFor.currentLength;
@@ -642,13 +692,12 @@ const renderDillFor = (change, generateDillTemplate, render, dillFor, template, 
             Generate a new Template for the cloned Template.
             This Template generation will always return an Array with one item, we destructure the Array here to get that one value.
         */
-                const [newTemplate] = generateDillTemplate(
+                const [newTemplate] = site.generateDillTemplate(
                     template,
                     intermediary,
                     newData,
                     newDillElement,
-                    dillFor.isSvgOrChildOfSVG,
-                    change
+                    dillFor.isSvgOrChildOfSVG
                 );
 
         /*
@@ -677,7 +726,11 @@ const renderDillFor = (change, generateDillTemplate, render, dillFor, template, 
             .pop().htmlElement;
 
         forEach([...intermediary.children], element => {
-            insertAfter(template.rootElement, previousElement, element);
+            insertAfter(
+                template.rootElement,
+                previousElement,
+                element
+            );
             previousElement = element;
         });
 
@@ -705,21 +758,40 @@ const renderDillFor = (change, generateDillTemplate, render, dillFor, template, 
     forEach(newList, (x, i) => {
         cleanData(x.data, newValue[i], i, data);
     });
-    forEach(dillFor.templates, render);
+    forEach(dillFor.templates, site.render);
 
     dillFor.currentLength = newLength;
 };
 
-const templateComponent = (change, generateDillTemplate, parentTemplate, rootElement, parentData, dillElement, isSvgOrChildOfSVG) => {
+const templateComponent = (
+    parentTemplate,
+    rootElement,
+    parentData,
+    dillElement,
+    isSvgOrChildOfSVG
+) => {
+    // console.log("Debugging: ", dillElement.Component.name);
+    // debugger;
 
-/* Create a new Data object from this Component and add it to the data tree. */
+
+// <
+//  Create a new Data object from this Component and add it to the data tree.
     const componentData = createData(new dillElement.Component(), parentData);
+// >
 
-/*
-    Add a property this this new data that contains all the dillElements that were inside this instance of the Component.
-    This will allow them to be added in somewhere in the content if we want.
-*/
-    addProperty(componentData, "_template", dillElement.childTemplates);
+
+
+// <
+//  Add a property this this new data that contains all the dillElements that were inside this instance of the Component.
+//  This will allow them to be added in somewhere in the content if we want.
+    addProperty(
+        componentData,
+        "_template",
+        dillElement.childTemplates
+    );
+// >
+
+
 
 /* Get a clone of the Component attributes. */
     const attributes = {...(dillElement.attributes || {})};
@@ -727,14 +799,27 @@ const templateComponent = (change, generateDillTemplate, parentTemplate, rootEle
 /* Dill tool to add many attribtues to an element or Component. dill-extends */
     templateDillExtends(attributes, componentData);
 
+    {
+        const quickLookUp = [
+            parentTemplate,
+            rootElement,
+            dillElement.Component,
+            attributes,
+            parentData,
+            dillElement,
+            isSvgOrChildOfSVG
+        ];
+    
 /* Handle dill-if and dill-for attributes. */
 /* DillIf is a conditional flag for whether we should add this element or not. */
-    const dillIf = templateDillIf(parentTemplate, rootElement, dillElement.Component, attributes, parentData, dillElement, isSvgOrChildOfSVG);
+        var dillIf = templateDillIf(...quickLookUp);
 /* DillFor is a repeat flag that will loop over an Array and clone the target. */
-    const dillFor = templateDillFor(parentTemplate, rootElement, dillElement.Component, attributes, parentData, dillElement, isSvgOrChildOfSVG);
+        var dillFor = templateDillFor(...quickLookUp);
+    }
 
 /* DillIf and DillFor are structural changes and affect what will be rendered. This variable captures what should happen next. */
     const elementWillBeRendered = !dillFor && (!dillIf || dillIf.currentValue);
+    // const elementWillBeRendered = true;
 
 /*
     Component attributes represent a unique mapping to a given Component.
@@ -760,84 +845,149 @@ const templateComponent = (change, generateDillTemplate, parentTemplate, rootEle
 */
     componentData._dillContext = newTemplate;
 
+/* Lifecycle hooks. */
+    elementWillBeRendered && componentData.hasOwnProperty("oninit") && componentData.oninit();
+    elementWillBeRendered && componentData.hasOwnProperty("oninserted") && componentData.oninserted();
+
 /* Recursively continue to check child templates. */
     newTemplate.childTemplates = elementWillBeRendered
-        ? generateDillTemplate(
+        ? site.generateDillTemplate(
+        // ? (circularDependencyCallBack && circularDependencyCallBack(
             newTemplate,
             rootElement,
             componentData,
             dillElement.Component.component.elements,
-            isSvgOrChildOfSVG,
-            change
+            isSvgOrChildOfSVG
+        // ))
         )
         : [];
 
 /* Lifecycle hook. */
-    elementWillBeRendered && componentData.hasOwnProperty("oninit") && componentData.oninit();
-    elementWillBeRendered && componentData.hasOwnProperty("oninserted") && componentData.oninserted();
+    elementWillBeRendered && componentData.hasOwnProperty("onaftercontent") && componentData.onaftercontent();
 
     return newTemplate;
 };
 
+const SaveChildTemplates = function(
+    referenceData,
+    childTemplates = null
+){
+    this.referenceData = referenceData;
+    this.childTemplates = childTemplates;
+
+    Object.seal(this);
+};
+
 const DillTemplate = function(
     lookup,
-    oldValues
+    referenceData
 ){
     this.lookup = lookup;
-    this.oldValues = oldValues;
+    this.savedComponents = [
+        new SaveChildTemplates(referenceData)
+    ];
+};
+
+const DillElement = function(
+    element,
+    attributes,
+    childTemplates
+){
+
+/*
+    A dill element can either be a Component or a HTML element.
+    e.g
+    <Component />
+    or
+    <div></div>
+    We check for which one this is below.
+*/
+    if (typeof element === "string") {
+        this.nodeName = element;
+    }
+    else if (element instanceof Function) {
+        this.Component = element;
+    }
+
+    this.attributes = attributes;
+
+    this.childTemplates = (
+        childTemplates instanceof Array
+            ? childTemplates
+            : [childTemplates]
+    );
+
+    Object.freeze(this);
 };
 
 /*
     This function replaces the childTemplates of a given Template with a value from the data.
     This is powerful way to programmtically set the content inside an Element.
 */
-const templateDillTemplate = (data, attributes, dillElement) => {
+const templateDillTemplate = (
+    data,
+    attributes
+) => {
 
     if (!attributes["dill-template"]) {
         return;
     }
 
-    const templateValue = attributes["dill-template"];
-    const childTemplates = resolveData(data, templateValue);
-
-    if (!(childTemplates instanceof Array)) {
-        return;
-    }
-
-    dillElement.childTemplates.length = 0;
-    dillElement.childTemplates.push(...childTemplates);
+    const lookup = attributes["dill-template"];
+    const referenceData = resolveData(data, lookup);
 
     return new DillTemplate(
-        templateValue,
-        childTemplates
+        lookup,
+        referenceData,
     );
 };
 
-const renderDillTemplate = (change, generateDillTemplate, template) => {
-    if (!template.dillTemplate) {
+const renderDillTemplate = template => {
+
+    const { htmlElement, data, dillTemplate, isSvgOrChildOfSVG } = template;
+
+    if (!dillTemplate) {
         return;
     }
-    const {oldValues} = template.dillTemplate;
-    const newValues = resolveData(template.data, template.dillTemplate.lookup);
-    if (oldValues !== newValues) {
-        reverseForEach(template.htmlElement.children, x => x.parentNode.removeChild(x));
-        const childTemplates = generateDillTemplate(
+
+    const referenceData = resolveData(data, dillTemplate.lookup);
+    let childTemplates;
+    const savedTemplate = dillTemplate.savedComponents.find(x => x.referenceData === referenceData);
+
+    forEach(htmlElement.childNodes, x => x.parentNode.removeChild(x));
+
+    if (!savedTemplate || savedTemplate.childTemplates === null) {
+
+        childTemplates = site.generateDillTemplate(
             template,
-            template.htmlElement,
-            template.data,
-            newValues,
-            template.isSvgOrChildOfSVG,
-            change
+            htmlElement,
+            data,
+            referenceData,
+            isSvgOrChildOfSVG
         );
+
+        if (!savedTemplate) {
+            dillTemplate.savedComponents.push(
+                new SaveChildTemplates(referenceData, childTemplates)
+            );
+        }
+        else {
+            savedTemplate.childTemplates = childTemplates;
+        }
+
         template.childTemplates.length = 0;
         template.childTemplates.push(...childTemplates);
-        template.dillTemplate.oldValues = newValues;
+    }
+    else {
+        template.childTemplates.length = 0;
+        template.childTemplates.push(...savedTemplate.childTemplates);
+        const htmlElements = getAllHtmlTemplatesFromChildTemplates(savedTemplate.childTemplates);
+        forEach(htmlElements, x => htmlElement.appendChild(x.htmlElement));
+        fireEvents(template, "oninserted");
     }
 };
 
 const templateHtmlElement = (
-    change,
-    generateDillTemplate,
     parentTemplate,
     rootElement,
     parentData,
@@ -864,28 +1014,48 @@ const templateHtmlElement = (
 /* Dill tool to add many attribtues to an element or Component. dill-extends */
     templateDillExtends(attributes, parentData);
 
+    {
+        const quickLookUp = [
+            parentTemplate,
+            rootElement,
+            htmlElement,
+            attributes,
+            parentData,
+            dillElement,
+            isSvgOrChildOfSVG
+        ];
 /* Handle dill-if and dill-for attributes. */
 /* DillIf is a conditional flag for whether we should add this element or not. */
-    const dillIf = templateDillIf(parentTemplate, rootElement, htmlElement, attributes, parentData, dillElement, isSvgOrChildOfSVG);
+        var dillIf = templateDillIf(...quickLookUp);
 /* DillFor is a repeat flag that will loop over an Array and clone the target. */
-    const dillFor = templateDillFor(parentTemplate, rootElement, htmlElement, attributes, parentData, dillElement, isSvgOrChildOfSVG);
+        var dillFor = templateDillFor(...quickLookUp);
+    }
 
 /* DillIf and DillFor are structural changes and affect what will be rendered. This variable captures what should happen next. */
     const elementWillBeRendered = !dillFor && (!dillIf || dillIf.currentValue);
+    // const elementWillBeRendered = true;
 
 /*
     This function takes the list of attributes on the Template and checks them, removing any attribute which is not valid and has another purpose.
     We then save the attributes that will be checked on each rerender.
 */
     const attributesForTemplate = elementWillBeRendered
-        ? templateAttributes(change, htmlElement, attributes, parentData)
+        ? templateAttributes(
+            htmlElement,
+            attributes,
+            parentData
+        )
         : [];
 
 /* Add this HTML to the document. */
     elementWillBeRendered && rootElement.appendChild(htmlElement);
 
 /* Handle the attribute dill-template. */
-    const dillTemplate = elementWillBeRendered && templateDillTemplate(parentData, attributes, dillElement);
+    const dillTemplate = elementWillBeRendered && templateDillTemplate(
+        parentData,
+        attributes,
+        // dillElement
+    );
 
 /* We create a new template. */
     const newTemplate = new Template(
@@ -902,13 +1072,12 @@ const templateHtmlElement = (
 
 /* Recursively continue to check child templates. */
     newTemplate.childTemplates = elementWillBeRendered
-        ? generateDillTemplate(
+        ? site.generateDillTemplate(
             newTemplate,
             htmlElement,
             parentData,
             dillElement.childTemplates,
-            isSvgOrChildOfSVG,
-            change
+            isSvgOrChildOfSVG
         )
         : [];
 
@@ -930,8 +1099,7 @@ const generateDillTemplate = (
     rootElement,
     parentData,
     dillElements,
-    isSvgOrChildOfSVG = false,
-    change
+    isSvgOrChildOfSVG = false
 ) => {
 
 /*
@@ -950,16 +1118,33 @@ const generateDillTemplate = (
 */
     return forEach(dillElements, dillElement => {
         if (typeof dillElement === "string") {
-            return templateTextNode(rootElement, parentData, dillElement);
+            return templateTextNode(rootElement,
+                parentData,
+                dillElement
+            );
         }
-        else if (dillElement.Component) {
-            return templateComponent(change, generateDillTemplate, parentTemplate, rootElement, parentData, dillElement, isSvgOrChildOfSVG);
+        else if (!!dillElement.Component) {
+            return templateComponent(parentTemplate,
+                rootElement,
+                parentData,
+                dillElement,
+                isSvgOrChildOfSVG,
+                // (a,b,c,d,e) => generateDillTemplate(a,b,c,d,e)
+            );
         }
-        else if (dillElement.nodeName) {
-            return templateHtmlElement(change, generateDillTemplate, parentTemplate, rootElement, parentData, dillElement, isSvgOrChildOfSVG);
+        else if (!!dillElement.nodeName) {
+            return templateHtmlElement(parentTemplate,
+                rootElement,
+                parentData,
+                dillElement,
+                isSvgOrChildOfSVG,
+                // (a,b,c,d,e) => generateDillTemplate(a,b,c,d,e)
+            );
         }
     });
 };
+
+site.generateDillTemplate = generateDillTemplate;
 
 const renderAttributes = (element, attributes, data) => {
 
@@ -971,8 +1156,12 @@ const renderAttributes = (element, attributes, data) => {
 
         const {name, value, dillAttribute} = attribute;
 
-        const oldValue = elementProperties.includes(name) ? element[name] : (element.attributes[name] && element.attributes[name].nodeValue);
-        const newValue = dillAttribute ? resolveData(data, value) : deBracer(value, data);
+        const oldValue = elementProperties.includes(name)
+            ? element[name]
+            : (element.attributes[name] && element.attributes[name].nodeValue);
+        const newValue = dillAttribute
+            ? resolveData(data, value)
+            : deBracer(value, data);
 
         if (oldValue !== newValue) {
             if (elementProperties.includes(name)) {
@@ -998,29 +1187,6 @@ const renderTextNode = (element, value, data) => {
     }
 };
 
-const site = {app:null};
-
-const change = render => componentContext => {
-    render(
-
-/*
-    Calling dill.change() will cause a rerender of a given Component.
-    If no Component is provided then the whole app gets reendered.
-    This is not great for performance.
-    When an event fires in runs a rerender globally by default but this can be prevented by writing code to target specific Components to rerender.
-*/
-        componentContext
-            ? componentContext._dillContext
-            : site.app
-    );
-};
-
-/*
-    In order to prevent a cyclic dependency we need to give the change function context here.
-*/
-
-const setUpChange = render => change(render);
-
 /*
     This function takes a Template instance and updates the connected element using the latest values.
     - We can ignore Components.
@@ -1030,77 +1196,171 @@ const setUpChange = render => change(render);
 */
 const render = template => {
 
-    const change = setUpChange(render);
+
 
     if (template instanceof Array) {
         forEach(template, render);
         return;
     }
 
+
+
+// Debugging
+    // console.log("Template: ", template);
+
     const { htmlElement, textNode, textValue, attributes, data, dillIf, dillFor } = template;
+
 
     if (!!textNode) {
         return renderTextNode(textNode, textValue, data);
     }
 
-    const newDillIf = renderDillIf(change, generateDillTemplate, dillIf, template, data);
+
+
+    const newDillIf = renderDillIf(dillIf, template, data);
+
+
 
     if (newDillIf && !newDillIf.currentValue) {
         return;
     }
 
+
+
     if (!!dillFor) {
-        renderDillFor(change, generateDillTemplate, render, dillFor, template, data);
+        renderDillFor(dillFor, template, data);
         return;
     }
 
+
+
     !!htmlElement && renderAttributes(htmlElement, attributes, data);
 
-    !!htmlElement && renderDillTemplate(change, generateDillTemplate, template);
+
+
+    !!htmlElement && renderDillTemplate(template);
+
+
+
+    fireEvents(template, "onchange");
+
+
 
     template.childTemplates instanceof Array && forEach(template.childTemplates, render);
 };
 
-const createDillApp = (rootElement, Data, dillElement) => {
+site.render = render;
 
-/*
-    Create a new app.
-    By normal methods only one app can exist on the site at once (site.app property).
-    However dill simply works by calling render and passing in a Template.
-    If means that you can create any number of apps if they are saved somewhere in the app.
-    This means the Dev can create portal apps.
-*/
+const initiateApp = (
+    rootElement,
+    Data,
+    dillElement
+) => {
 
-/* This newData will be the root data for the whole site. */
+
+
+// <
+//  Create a new app.
+//  By normal methods only one app can exist on the site at once (site.app property).
+//  However dill simply works by calling render and passing in a Template.
+//  If means that you can create any number of apps if they are saved somewhere in the app.
+//  This means the Dev can create portal apps.
+// >
+
+
+
+// >
+//  This newData will be the root data for the whole site.
     const newData = createData(new Data());
+// >
 
-/* Lifecycle hook. */
+
+
+// >
+//  Lifecycle hook.
     newData.onpretemplate && newData.onpretemplate();
+// >
 
-/* Generate the site template. */
-    site.app = generateDillTemplate(null, rootElement, newData, dillElement, false, setUpChange(render));
 
-/* Lifecycle hook. */
+
+// >
+//  Generate the site template.
+    site.app = generateDillTemplate(null, rootElement, newData, dillElement, false);
+// >
+
+
+// >
+//  Lifecycle hook.
     newData.oninit && newData.oninit();
+// >
 
-/* Render the site for the first time. */
-    site.app.forEach(render);
+
+
+// >
+//      Render the site for the first time.
+    render(site.app);
+// >
+
+
+
+// >
+//  Return the root data.
+//  This allows access to the rootdata outside the app.
+//  If the root element was a Component then this data will contain the _dillContext property which will allow the app Template to be accessed and saved.
+//  This allows the creation of portal apps.
+    return newData;
+// >
+
+};
+
+const change = componentContext => {
 
 /*
-    Return the root data.
-    This allows access to the rootdata outside the app.
-    If the root element was a Component then this data will contain the _dillContext property which will allow the app Template to be accessed and saved.
-    This allows the creation of portal apps.
+    Calling dill.change() will cause a rerender of a given Component.
+    If no Component is provided then the whole app gets reendered.
+    This is not great for performance.
+    When an event fires in runs a rerender globally by default but this can be prevented by writing code to target specific Components to rerender.
 */
-    return newData;
+
+    if (!!componentContext) {
+        site.devMode && console.log("DILL DEV. CONTEXT PASSED TO DILL.CHANGE -> ", componentContext._dillContext);
+        render(componentContext._dillContext);
+    }
+    else if (site.strictMode === false) {
+        render(site.app);
+    }
+    else {
+        console.warn("dill.change() was called with undefined will in strict mode, no render will be fired.");
+    }
 };
+
+site.change = change;
 
 const dill = new function Dill(){
+
+    this.element = function(
+        element,
+        attributes,
+        childTemplate
+    ){
+        return new DillElement(
+            element,
+            attributes,
+            childTemplate instanceof Array
+                ? childTemplate
+                : [...arguments].slice(2)
+        );
+    };
+
+    this.setStrictMode = () => site.strictMode = true;
+    this.setDevMode = () => site.devMode = true;
+    this.setDoNotRunChangeOnEvents = () => site.runChangeOnEvents = false;
+
     this.Component = Component;
-    this.element = createDillElement;
-    this.create = createDillApp;
-    this.change = setUpChange(render);
+
+    this.create = initiateApp;
+
+    this.change = change;
 };
-window.dill = dill;
 
 export { dill };

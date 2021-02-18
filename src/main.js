@@ -1,15 +1,35 @@
 
-import { createDillElement } from "./services/create-dill-element.service";
-import { createDillApp } from "./services/create-dill-app.service";
-import { setUpChange } from "./services/change.service";
+import { initiateApp } from "./main/initiate-app.service";
+import { change } from "./services/rendering/change.service";
 
+import { DillElement } from "./models/DillElement.model";
 import { Component } from "./models/Component.model";
-import { render } from "./services/render/render.service";
+
+import { site } from "./data/site.data";
 
 export const dill = new function Dill(){
+
+    this.element = function(
+        element,
+        attributes,
+        childTemplate
+    ){
+        return new DillElement(
+            element,
+            attributes,
+            childTemplate instanceof Array
+                ? childTemplate
+                : [...arguments].slice(2)
+        );
+    };
+
+    this.setStrictMode = () => site.strictMode = true;
+    this.setDevMode = () => site.devMode = true;
+    this.setDoNotRunChangeOnEvents = () => site.runChangeOnEvents = false;
+
     this.Component = Component;
-    this.element = createDillElement;
-    this.create = createDillApp;
-    this.change = setUpChange(render);
+
+    this.create = initiateApp;
+
+    this.change = change;
 };
-window.dill = dill;
