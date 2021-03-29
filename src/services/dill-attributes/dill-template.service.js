@@ -1,30 +1,26 @@
 
-import { forEach } from "sage-library";
+import { forEach, reverseForEach } from "sage-library";
 
 import { resolveData } from "../../logic/resolve-data.logic";
-
-import { DillTemplate } from "../../models/DillTemplate.model";
-import { SaveChildTemplates } from "../../models/SaveChildTemplates.model";
-import { DillElement } from "../../models/DillElement.model";
-
-import { site } from "../../data/site.data";
 import { getAllHtmlTemplatesFromChildTemplates } from "../../logic/get-all-html-templates-from-child-templates.logic";
 import { fireEvents } from "../../logic/fire-events.logic";
 
-/*
-    This function replaces the childTemplates of a given Template with a value from the data.
-    This is powerful way to programmtically set the content inside an Element.
-*/
+import { DillTemplate } from "../../models/DillTemplate.model";
+import { SaveChildTemplates } from "../../models/SaveChildTemplates.model";
+
+import { site } from "../../data/site.data";
+
 export const templateDillTemplate = (
     data,
     attributes
 ) => {
 
-    if (!attributes["dill-template"]) {
+    const { "dill-template": lookup } = attributes;
+
+    if (!lookup) {
         return;
     }
 
-    const lookup = attributes["dill-template"];
     const referenceData = resolveData(data, lookup);
 
     return new DillTemplate(
@@ -33,11 +29,15 @@ export const templateDillTemplate = (
     );
 }
 
-export const renderDillTemplate = template => {
+export const renderDillTemplate = (
+    template,
+    htmlElement,
+    data,
+    dillTemplate,
+    isSvgOrChildOfSVG
+) => {
 
-    const { htmlElement, data, dillTemplate, isSvgOrChildOfSVG } = template;
-
-    if (!dillTemplate) {
+    if (!dillTemplate || !(dillTemplate instanceof DillTemplate)) {
         return;
     }
 
@@ -45,7 +45,7 @@ export const renderDillTemplate = template => {
     let childTemplates;
     const savedTemplate = dillTemplate.savedComponents.find(x => x.referenceData === referenceData);
 
-    forEach(htmlElement.childNodes, x => x.parentNode.removeChild(x));
+    reverseForEach(htmlElement.childNodes, x => x.parentNode.removeChild(x));
 
     if (!savedTemplate || savedTemplate.childTemplates === null) {
 

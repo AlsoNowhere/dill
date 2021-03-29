@@ -34,7 +34,7 @@ export const render = template => {
 // Debugging
     // console.log("Template: ", template);
 
-    const { htmlElement, textNode, textValue, attributes, data, dillIf, dillFor } = template;
+    const { htmlElement, textNode, textValue, attributes, data, dillTemplate, dillIf, dillFor, isSvgOrChildOfSVG } = template;
 
 
     if (!!textNode) {
@@ -64,7 +64,7 @@ export const render = template => {
 
 
 
-    !!htmlElement && renderDillTemplate(template);
+    !!htmlElement && renderDillTemplate(template, htmlElement, data, dillTemplate, isSvgOrChildOfSVG);
 
 
 

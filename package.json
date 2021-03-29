@@ -1,6 +1,6 @@
 {
 	"name": "dill-framework",
-	"version": "3.3.0",
+	"version": "3.4.0",
 	"description": "Frontend framework with jsx.",
 	"main": "./dist/dill.js",
 	"scripts": {

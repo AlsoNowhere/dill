@@ -55,6 +55,12 @@ const forEach = baseForEach(
     1
 );
 
+const reverseForEach = baseForEach(
+    array => array.length - 1,
+    i => i >= 0,
+    -1
+);
+
 var resolveData = (data, value) => {
     var output = data[value] instanceof Function
         && data[value].component === undefined
@@ -888,52 +894,17 @@ const DillTemplate = function(
     ];
 };
 
-const DillElement = function(
-    element,
-    attributes,
-    childTemplates
-){
-
-/*
-    A dill element can either be a Component or a HTML element.
-    e.g
-    <Component />
-    or
-    <div></div>
-    We check for which one this is below.
-*/
-    if (typeof element === "string") {
-        this.nodeName = element;
-    }
-    else if (element instanceof Function) {
-        this.Component = element;
-    }
-
-    this.attributes = attributes;
-
-    this.childTemplates = (
-        childTemplates instanceof Array
-            ? childTemplates
-            : [childTemplates]
-    );
-
-    Object.freeze(this);
-};
-
-/*
-    This function replaces the childTemplates of a given Template with a value from the data.
-    This is powerful way to programmtically set the content inside an Element.
-*/
 const templateDillTemplate = (
     data,
     attributes
 ) => {
 
-    if (!attributes["dill-template"]) {
+    const { "dill-template": lookup } = attributes;
+
+    if (!lookup) {
         return;
     }
 
-    const lookup = attributes["dill-template"];
     const referenceData = resolveData(data, lookup);
 
     return new DillTemplate(
@@ -942,11 +913,15 @@ const templateDillTemplate = (
     );
 };
 
-const renderDillTemplate = template => {
+const renderDillTemplate = (
+    template,
+    htmlElement,
+    data,
+    dillTemplate,
+    isSvgOrChildOfSVG
+) => {
 
-    const { htmlElement, data, dillTemplate, isSvgOrChildOfSVG } = template;
-
-    if (!dillTemplate) {
+    if (!dillTemplate || !(dillTemplate instanceof DillTemplate)) {
         return;
     }
 
@@ -954,7 +929,7 @@ const renderDillTemplate = template => {
     let childTemplates;
     const savedTemplate = dillTemplate.savedComponents.find(x => x.referenceData === referenceData);
 
-    forEach(htmlElement.childNodes, x => x.parentNode.removeChild(x));
+    reverseForEach(htmlElement.childNodes, x => x.parentNode.removeChild(x));
 
     if (!savedTemplate || savedTemplate.childTemplates === null) {
 
@@ -1208,7 +1183,7 @@ const render = template => {
 // Debugging
     // console.log("Template: ", template);
 
-    const { htmlElement, textNode, textValue, attributes, data, dillIf, dillFor } = template;
+    const { htmlElement, textNode, textValue, attributes, data, dillTemplate, dillIf, dillFor, isSvgOrChildOfSVG } = template;
 
 
     if (!!textNode) {
@@ -1238,7 +1213,7 @@ const render = template => {
 
 
 
-    !!htmlElement && renderDillTemplate(template);
+    !!htmlElement && renderDillTemplate(template, htmlElement, data, dillTemplate, isSvgOrChildOfSVG);
 
 
 
@@ -1335,6 +1310,38 @@ const change = componentContext => {
 };
 
 site.change = change;
+
+const DillElement = function(
+    element,
+    attributes,
+    childTemplates
+){
+
+/*
+    A dill element can either be a Component or a HTML element.
+    e.g
+    <Component />
+    or
+    <div></div>
+    We check for which one this is below.
+*/
+    if (typeof element === "string") {
+        this.nodeName = element;
+    }
+    else if (element instanceof Function) {
+        this.Component = element;
+    }
+
+    this.attributes = attributes;
+
+    this.childTemplates = (
+        childTemplates instanceof Array
+            ? childTemplates
+            : [childTemplates]
+    );
+
+    Object.freeze(this);
+};
 
 const dill = new function Dill(){
 
